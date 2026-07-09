@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Halloween Archery - Bigger Hitbox Edition</title>
+    <title>Halloween Archery - SVG Pause Icon Edition</title>
     <style>
         * {
             box-sizing: border-box;
@@ -33,7 +33,7 @@
 
         #ui {
             position: absolute;
-            top: 20px;
+            top: 15px;
             left: 20px;
             color: #ff5500;
             font-size: 24px;
@@ -42,6 +42,34 @@
             pointer-events: none;
             z-index: 10;
             line-height: 1.5;
+        }
+
+        /* Sağ üstteki parlayan gotik SVG Pause Butonu */
+        #pauseBtn {
+            position: absolute;
+            top: 15px;
+            right: 20px;
+            background: none;
+            border: none;
+            cursor: pointer;
+            z-index: 20;
+            padding: 5px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            /* UI yazı stilleriyle uyumlu parlama efekti */
+            filter: drop-shadow(2px 2px 4px #000) drop-shadow(0 0 8px #ff5500);
+            transition: transform 0.1s ease;
+        }
+
+        #pauseBtn:active {
+            transform: scale(0.9);
+        }
+
+        #pauseBtn svg {
+            fill: #ff5500;
+            width: 32px;
+            height: 32px;
         }
     </style>
 </head>
@@ -53,6 +81,14 @@
         EN YÜKSEK: <span id="highScore">0</span><br>
         YAY HAKKI: <span id="lives">3</span>
     </div>
+
+    <!-- SVG İkonlu Yeni Pause Butonu -->
+    <button id="pauseBtn">
+        <svg id="pauseIcon" viewBox="0 0 24 24">
+            <path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z" />
+        </svg>
+    </button>
+
     <canvas id="gameCanvas"></canvas>
 
     <script>
@@ -61,20 +97,21 @@
         const scoreEl = document.getElementById('score');
         const highScoreEl = document.getElementById('highScore');
         const livesEl = document.getElementById('lives');
+        const pauseBtn = document.getElementById('pauseBtn');
+        const pauseIcon = document.getElementById('pauseIcon');
 
         let score = 0;
         let highScore = localStorage.getItem('halloween_highscore') ? parseInt(localStorage.getItem('halloween_highscore')) : 0;
         let lives = 3;
         let isGameOver = false;
+        let isPaused = false;
         let width, height;
 
         highScoreEl.innerText = highScore;
 
-        // Ok ve Yay Fizik Sabitleri
         const GLOBAL_GRAVITY = 0.32;
         const GLOBAL_POWER = 0.16;
 
-        // --- HARİCİ LİNKSİZ DONANIMSAL SES MOTORU ---
         let audioCtx = null;
 
         function initAudioEngine() {
@@ -128,10 +165,23 @@
             osc.stop(audioCtx.currentTime + 0.15);
         }
 
+        // SVG İkon Değiştirme Fonksiyonu
+        function updatePauseIcon() {
+            if (isPaused) {
+                // Resume (Oynat/Üçgen) İkonu SVG kodu
+                pauseIcon.innerHTML = '<path d="M8 5v14l11-7z"/>';
+            } else {
+                // Pause (Duraklat/İki Çizgi) İkonu SVG kodu
+                pauseIcon.innerHTML = '<path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/>';
+            }
+        }
+
         function resetGame() {
             score = 0;
             lives = 3;
             isGameOver = false;
+            isPaused = false;
+            updatePauseIcon();
             arrows = [];
             targets = [];
             combos = [];
@@ -139,24 +189,29 @@
             livesEl.innerText = lives;
         }
 
-        // Arka plan resmi
+        // Pause Butonuna Tıklama Olayı
+        pauseBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            if (isGameOver) return;
+
+            isPaused = !isPaused;
+            updatePauseIcon(); // İkon görünümünü değiştir
+        });
+
         const bgImage = new Image();
-        bgImage.src = "https://static.vecteezy.com/system/resources/thumbnails/029/731/971/small_2x/halloween-pumpkins-against-the-backdrop-of-a-scary-terrifying-house-and-forest-on-a-dark-night-halloween-background-photo.jpg";
+        bgImage.src = "https://raw.githubusercontent.com/Softsprout/veloralpcase/refs/heads/main/assets/background.jpg";
 
-        // Canavar Görselleri
         const monsterImages = [new Image(), new Image(), new Image()];
-        monsterImages[0].src = "https://raw.githubusercontent.com/Softsprout/veloralpcase/refs/heads/main/monster1.png";
-        monsterImages[1].src = "https://raw.githubusercontent.com/Softsprout/veloralpcase/refs/heads/main/monster2.png";
-        monsterImages[2].src = "https://raw.githubusercontent.com/Softsprout/veloralpcase/refs/heads/main/monster3.png";
+        monsterImages[0].src = "https://raw.githubusercontent.com/Softsprout/veloralpcase/refs/heads/main/assets/monster1.png";
+        monsterImages[1].src = "https://raw.githubusercontent.com/Softsprout/veloralpcase/refs/heads/main/assets/monster2.png";
+        monsterImages[2].src = "https://raw.githubusercontent.com/Softsprout/veloralpcase/refs/heads/main/assets/monster3.png";
 
-        // Yay ve Ok Görselleri
         const launcherImage = new Image();
-        launcherImage.src = "https://raw.githubusercontent.com/Softsprout/veloralpcase/refs/heads/main/launcher.png";
+        launcherImage.src = "https://raw.githubusercontent.com/Softsprout/veloralpcase/refs/heads/main/assets/launcher.png";
 
         const arrowImage = new Image();
-        arrowImage.src = "https://raw.githubusercontent.com/Softsprout/veloralpcase/refs/heads/main/arrow.png";
+        arrowImage.src = "https://raw.githubusercontent.com/Softsprout/veloralpcase/refs/heads/main/assets/arrow.png";
 
-        // Fırlatıcı Ayarları
         const launcher = {
             x: 0,
             y: 0,
@@ -191,7 +246,6 @@
             launcher.y = height - 70;
         }
 
-        // Animated Combo Text Sınıfı
         class AnimatedComboText {
             constructor(x, y, multiplier) {
                 this.x = x;
@@ -229,7 +283,6 @@
             }
         }
 
-        // Canavar Sınıfı
         class HalloweenMonster {
             constructor() {
                 this.imgIndex = Math.floor(Math.random() * monsterImages.length);
@@ -240,9 +293,6 @@
                 this.speedY = 0;
                 this.height = 65;
                 this.width = 110;
-
-                // --- HITBOX BÜYÜTÜLDÜ ---
-                // Eskiden %45 olan çarpışma alanı %70'e çıkarılarak canavarların vurulması belirgin şekilde kolaylaştırıldı.
                 this.radius = this.height * 0.70;
 
                 this.isDead = false;
@@ -290,7 +340,6 @@
             }
         }
 
-        // Ok Sınıfı
         class CurseArrow {
             constructor(x, y, vx, vy) {
                 this.x = x; this.y = y; this.vx = vx; this.vy = vy;
@@ -324,7 +373,6 @@
             }
         }
 
-        // Girdi Kontrolleri
         function getPos(e) {
             const rect = canvas.getBoundingClientRect();
             const clientX = e.touches ? e.touches[0].clientX : e.clientX;
@@ -333,7 +381,9 @@
         }
         function startDrag(e) {
             initAudioEngine();
+
             if (isGameOver) { resetGame(); return; }
+            if (isPaused) { isPaused = false; updatePauseIcon(); return; }
 
             const pos = getPos(e);
             launcher.isDragging = true;
@@ -343,7 +393,7 @@
             launcher.dragY = pos.y;
         }
         function doDrag(e) {
-            if (!launcher.isDragging || isGameOver) return;
+            if (!launcher.isDragging || isGameOver || isPaused) return;
             const pos = getPos(e);
 
             const dx = pos.x - launcher.dragStartX;
@@ -360,7 +410,7 @@
             }
         }
         function endDrag(e) {
-            if (!launcher.isDragging || isGameOver) return;
+            if (!launcher.isDragging || isGameOver || isPaused) return;
             launcher.isDragging = false;
 
             const dx = launcher.dragStartX - launcher.dragX;
@@ -381,7 +431,7 @@
         window.addEventListener('touchend', endDrag);
 
         setInterval(() => {
-            if (targets.length < 4 && !isGameOver) targets.push(new HalloweenMonster());
+            if (targets.length < 4 && !isGameOver && !isPaused) targets.push(new HalloweenMonster());
         }, 1500);
 
         function drawTrajectoryIndicator(vx, vy) {
@@ -472,6 +522,25 @@
             ctx.restore();
         }
 
+        function drawPauseScreen() {
+            ctx.save();
+            ctx.fillStyle = 'rgba(0, 0, 0, 0.55)';
+            ctx.fillRect(0, 0, width, height);
+            ctx.fillStyle = '#ff5500';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.shadowColor = '#ff5500';
+            ctx.shadowBlur = 15;
+            ctx.shadowOffsetX = 2;
+            ctx.shadowOffsetY = 2;
+            ctx.font = 'bold 36px "Courier New", Courier, monospace';
+            ctx.fillText('OYUN DURAKLATILDI', width / 2, height / 2 - 20);
+            ctx.font = 'bold 18px "Courier New", Courier, monospace';
+            ctx.shadowBlur = 8;
+            ctx.fillText('DEVAM ETMEK İÇİN EKRANA DOKUN', width / 2, height / 2 + 35);
+            ctx.restore();
+        }
+
         function loop() {
             ctx.imageSmoothingEnabled = true;
             ctx.imageSmoothingQuality = 'high';
@@ -485,7 +554,7 @@
             // Oklar Kontrolü
             for (let i = arrows.length - 1; i >= 0; i--) {
                 let arrow = arrows[i];
-                if (!isGameOver) arrow.update();
+                if (!isGameOver && !isPaused) arrow.update();
                 arrow.draw();
 
                 if (arrow.x < -100 || arrow.x > width + 100 || arrow.y > height + 100) {
@@ -525,7 +594,7 @@
             // Canavarlar Kontrolü & Kombo Yönetimi
             for (let i = targets.length - 1; i >= 0; i--) {
                 let target = targets[i];
-                if (!isGameOver) target.update();
+                if (!isGameOver && !isPaused) target.update();
                 target.draw();
 
                 if (target.isDead) {
@@ -562,7 +631,7 @@
             // Kombo Animasyonları Çizimi
             for (let i = combos.length - 1; i >= 0; i--) {
                 let comboText = combos[i];
-                comboText.update();
+                if (!isPaused) comboText.update();
                 comboText.draw();
                 if (comboText.life <= 0) {
                     combos.splice(i, 1);
@@ -570,6 +639,7 @@
             }
 
             if (isGameOver) drawGameOverScreen();
+            if (isPaused && !isGameOver) drawPauseScreen();
 
             requestAnimationFrame(loop);
         }
