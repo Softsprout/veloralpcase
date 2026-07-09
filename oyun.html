@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Halloween Archery - High Definition</title>
+    <title>Halloween Archery - Premium Weapon Edition</title>
     <style>
         * {
             box-sizing: border-box;
@@ -27,7 +27,6 @@
             display: block;
             width: 100%;
             height: 100%;
-            /* GPU ivmelenmesini CSS tarafında da zorunlu kılıyoruz */
             transform: translateZ(0);
             backface-visibility: hidden;
         }
@@ -59,53 +58,54 @@
         let score = 0;
         let width, height;
 
-        // Arka plan resmi yükleme
+        // Arka plan resmi
         const bgImage = new Image();
         bgImage.src = "https://static.vecteezy.com/system/resources/thumbnails/029/731/971/small_2x/halloween-pumpkins-against-the-backdrop-of-a-scary-terrifying-house-and-forest-on-a-dark-night-halloween-background-photo.jpg";
 
-        // GitHub Canavar Görselleri
-        const monsterImages = [
-            new Image(),
-            new Image(),
-            new Image()
-        ];
+        // Canavar Görselleri
+        const monsterImages = [new Image(), new Image(), new Image()];
         monsterImages[0].src = "https://raw.githubusercontent.com/Softsprout/veloralpcase/refs/heads/main/monster1.png";
         monsterImages[1].src = "https://raw.githubusercontent.com/Softsprout/veloralpcase/refs/heads/main/monster2.png";
         monsterImages[2].src = "https://raw.githubusercontent.com/Softsprout/veloralpcase/refs/heads/main/monster3.png";
 
-        // Yay Fırlatıcı Ayarları
+        // --- YENİ SİLAH VE OK GÖRSELLERİ ---
+        // GitHub'a yüklediğin yay ve ok linklerini buraya yapıştır
+        const launcherImage = new Image();
+        launcherImage.src = "https://raw.githubusercontent.com/Softsprout/veloralpcase/refs/heads/main/launcher.png";
+
+        const arrowImage = new Image();
+        arrowImage.src = "https://raw.githubusercontent.com/Softsprout/veloralpcase/refs/heads/main/arrow.png";
+
+        // Fırlatıcı Ayarları
         const launcher = {
             x: 0,
             y: 0,
-            radius: 50,
+            radius: 40,
             isDragging: false,
             dragX: 0,
             dragY: 0,
-            maxDrag: 150
+            maxDrag: 140,
+            width: 120,  // Yayın ekrandaki genişliği
+            height: 90   // Yayın ekrandaki yüksekliği
         };
 
         let arrows = [];
         let targets = [];
 
-        // HD Ekranlar ve Mobil Cihazlar için Piksel Yoğunluğu (Anti-Aliasing Çözümü)
         function resize() {
             const dpr = window.devicePixelRatio || 1;
             width = window.innerWidth;
             height = window.innerHeight;
 
-            // Canvas'ın fiziksel piksel boyutunu ekran çözünürlüğüne göre katlıyoruz
             canvas.width = width * dpr;
             canvas.height = height * dpr;
-
-            // CSS boyutunu normal bırakıyoruz
             canvas.style.width = width + 'px';
             canvas.style.height = height + 'px';
 
-            // Çizim context'ini dpr oranında ölçekleyerek jilet gibi netlik elde ediyoruz
             ctx.scale(dpr, dpr);
 
             launcher.x = width / 2;
-            launcher.y = height - 60;
+            launcher.y = height - 70;
         }
 
         // Canavar Sınıfı
@@ -113,80 +113,73 @@
             constructor() {
                 this.imgIndex = Math.floor(Math.random() * monsterImages.length);
                 this.image = monsterImages[this.imgIndex];
-
                 this.x = Math.random() > 0.5 ? -200 : width + 200;
                 this.y = Math.random() * (height * 0.45) + 60;
                 this.speed = (Math.random() * 1.8 + 1.5) * (this.x < 0 ? 1 : -1);
-
-                // --- BOYUT 3/4 ORANINA ÇEKİLDİ ---
                 this.height = 65;
                 this.width = 110;
                 this.radius = this.height * 0.45;
             }
-
             update() {
                 this.x += this.speed;
                 this.y += Math.sin(this.x * 0.02) * 0.6;
             }
-
             draw() {
                 ctx.save();
-
-                // Titremeyi önlemek için koordinatları Math.floor ile tam sayıya yuvarlıyoruz
                 ctx.translate(Math.floor(this.x), Math.floor(this.y));
-
-                if (this.speed > 0) {
-                    ctx.scale(-1, 1);
-                }
-
+                if (this.speed > 0) ctx.scale(-1, 1);
                 if (this.image.complete) {
                     const aspectRatio = this.image.naturalWidth / this.image.naturalHeight;
                     this.width = this.height * aspectRatio;
-
-                    // Kenar yumuşatmayı en yüksek kaliteye zorla
                     ctx.imageSmoothingEnabled = true;
                     ctx.imageSmoothingQuality = 'high';
-
                     ctx.drawImage(this.image, -this.width / 2, -this.height / 2, this.width, this.height);
                 }
-
                 ctx.restore();
             }
         }
 
-        // Lanetli Ok Sınıfı
+        // GÖRSEL TABANLI YENİ OK SINIFI
         class CurseArrow {
             constructor(x, y, vx, vy) {
                 this.x = x; this.y = y; this.vx = vx; this.vy = vy;
                 this.gravity = 0.16; this.angle = 0;
-            }
 
+                // Ok boyutu (Heybetli ve net durması için)
+                this.height = 38;
+                this.width = 100;
+            }
             update() {
                 this.vy += this.gravity;
                 this.x += this.vx;
                 this.y += this.vy;
+
+                // Gitmesi gereken ham hareket açısını hesaplıyoruz
                 this.angle = Math.atan2(this.vy, this.vx);
             }
-
             draw() {
                 ctx.save();
                 ctx.translate(Math.floor(this.x), Math.floor(this.y));
-                ctx.rotate(this.angle);
 
-                ctx.strokeStyle = '#3a2d54';
-                ctx.lineWidth = 4;
-                ctx.beginPath(); ctx.moveTo(-35, 0); ctx.lineTo(0, 0); ctx.stroke();
+                // --- OK YÖNÜ DÜZELTME AYARI ---
+                // Eğer ok havada giderken ucu yerine arkası önde gidiyorsa, 
+                // buradaki "+ Math.PI" ifadesini silebilir veya değiştirebilirsin.
+                ctx.rotate(this.angle + Math.PI);
 
-                ctx.fillStyle = '#8a0303';
-                ctx.beginPath(); ctx.moveTo(-35, 0); ctx.lineTo(-45, -8); ctx.lineTo(-40, 0); ctx.lineTo(-45, 8); ctx.closePath(); ctx.fill();
+                if (arrowImage.complete) {
+                    ctx.imageSmoothingEnabled = true;
+                    ctx.imageSmoothingQuality = 'high';
 
-                ctx.fillStyle = '#49e31b';
-                ctx.shadowColor = '#49e31b';
-                ctx.shadowBlur = 12;
-                ctx.beginPath(); ctx.moveTo(0, 0); ctx.lineTo(-12, -7); ctx.lineTo(10, 0); ctx.lineTo(-12, 7); ctx.closePath(); ctx.fill();
+                    const aspectRatio = arrowImage.naturalWidth / arrowImage.naturalHeight;
+                    this.width = this.height * aspectRatio;
 
+                    // Okun tam ucunun (plazma alevinin) canavara çarpması için merkezleme hizası
+                    ctx.drawImage(arrowImage, -this.width / 2, -this.height / 2, this.width, this.height);
+                } else {
+                    ctx.strokeStyle = '#49e31b'; ctx.lineWidth = 4;
+                    ctx.beginPath(); ctx.moveTo(-30, 0); ctx.lineTo(30, 0); ctx.stroke();
+                }
                 ctx.restore();
-                ctx.shadowBlur = 0;
             }
         }
 
@@ -197,24 +190,21 @@
             const clientY = e.touches ? e.touches[0].clientY : e.clientY;
             return { x: clientX - rect.left, y: clientY - rect.top };
         }
-
         function startDrag(e) {
             const pos = getPos(e);
             const dist = Math.hypot(pos.x - launcher.x, pos.y - launcher.y);
-            if (dist < launcher.radius + 50) {
+            if (dist < launcher.radius + 60) {
                 launcher.isDragging = true;
                 launcher.dragX = pos.x;
                 launcher.dragY = pos.y;
             }
         }
-
         function doDrag(e) {
             if (!launcher.isDragging) return;
             const pos = getPos(e);
             const dx = pos.x - launcher.x;
             const dy = pos.y - launcher.y;
             const dist = Math.hypot(dx, dy);
-
             if (dist > launcher.maxDrag) {
                 launcher.dragX = launcher.x + (dx / dist) * launcher.maxDrag;
                 launcher.dragY = launcher.y + (dy / dist) * launcher.maxDrag;
@@ -223,14 +213,13 @@
                 launcher.dragY = pos.y;
             }
         }
-
         function endDrag(e) {
             if (!launcher.isDragging) return;
             launcher.isDragging = false;
             const dx = launcher.x - launcher.dragX;
             const dy = launcher.y - launcher.dragY;
             const power = 0.16;
-            arrows.push(new CurseArrow(launcher.x, launcher.y - 20, dx * power, dy * power));
+            arrows.push(new CurseArrow(launcher.x, launcher.y - 15, dx * power, dy * power));
         }
 
         window.addEventListener('resize', resize);
@@ -241,58 +230,66 @@
         canvas.addEventListener('touchmove', doDrag, { passive: true });
         window.addEventListener('touchend', endDrag);
 
-        // Canavar Üretim Döngüsü
-        setInterval(() => {
-            if (targets.length < 4) {
-                targets.push(new HalloweenMonster());
-            }
-        }, 1500);
+        setInterval(() => { if (targets.length < 4) targets.push(new HalloweenMonster()); }, 1500);
 
-        // Yay Çizimi
+        // GÖRSEL TABANLI YENİ YAY ÇİZİMİ
         function drawLauncher() {
             ctx.save();
-            ctx.translate(Math.floor(launcher.x), Math.floor(launcher.y));
 
-            ctx.strokeStyle = launcher.isDragging ? '#ff3300' : '#44e31b';
-            ctx.lineWidth = 2;
-            ctx.beginPath();
+            let angle = 0;
             if (launcher.isDragging) {
-                let localDragX = launcher.dragX - launcher.x;
-                let localDragY = launcher.dragY - launcher.y;
-                ctx.moveTo(-50, -10); ctx.lineTo(localDragX, localDragY); ctx.lineTo(50, -10);
+                // Matematiksel yönü tersine çevirerek okun fırlatılacağı gerçek hedef açısını hesaplıyoruz
+                angle = Math.atan2(launcher.dragY - launcher.y, launcher.dragX - launcher.x) - Math.PI / 2;
+            }
+
+            ctx.translate(Math.floor(launcher.x), Math.floor(launcher.y));
+            ctx.rotate(angle);
+
+            // 1. Gerilen İp (Görselin arkasında pürüzsüzce esnemesi için önce çiziliyor)
+            ctx.strokeStyle = launcher.isDragging ? 'rgba(255, 51, 0, 0.8)' : 'rgba(73, 227, 27, 0.6)';
+            ctx.lineWidth = 2.5;
+            ctx.beginPath();
+
+            if (launcher.isDragging) {
+                // İpin geriye doğru (çektiğimiz noktaya) esnemesini sağlıyoruz
+                let dist = Math.hypot(launcher.dragX - launcher.x, launcher.dragY - launcher.y);
+                ctx.moveTo(-launcher.width / 2.3, 0);
+                ctx.lineTo(0, -dist); // Yönü yukarı/aşağı kalibre etmek için eksi ekledik
+                ctx.moveTo(launcher.width / 2.3, 0);
+                ctx.lineTo(0, -dist);
             } else {
-                ctx.moveTo(-50, -10); ctx.lineTo(50, -10);
+                ctx.moveTo(-launcher.width / 2.3, 0);
+                ctx.lineTo(launcher.width / 2.3, 0);
             }
             ctx.stroke();
 
-            ctx.strokeStyle = '#2b1d11'; ctx.lineWidth = 10; ctx.lineCap = 'round'; ctx.shadowColor = '#000'; ctx.shadowBlur = 10;
-            ctx.beginPath(); ctx.arc(0, 15, 52, Math.PI, 0, false); ctx.stroke();
+            // 2. Premium Gotik Yay Görseli (MSAA ve Netlik Modunda)
+            if (launcherImage.complete) {
+                ctx.imageSmoothingEnabled = true;
+                ctx.imageSmoothingQuality = 'high';
 
-            ctx.fillStyle = '#ff7700'; ctx.beginPath(); ctx.arc(0, 15, 14, 0, Math.PI * 2); ctx.fill();
+                const aspectRatio = launcherImage.naturalWidth / launcherImage.naturalHeight;
+                launcher.width = launcher.height * aspectRatio;
 
-            ctx.fillStyle = '#d1ccb8'; ctx.strokeStyle = '#423d30'; ctx.lineWidth = 1.5; ctx.fillRect(-8, 25, 16, 50);
-            for (let i = -10; i <= 10; i += 6) {
-                ctx.beginPath(); ctx.arc(i, 20, 4, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+                // Görselin tam merkezden kusursuz dönmesi için koordinat hizalaması
+                ctx.drawImage(launcherImage, -launcher.width / 2, -launcher.height / 2, launcher.width, launcher.height);
+            } else {
+                // Görsel yüklenene kadar yedek geometrik yay halkası
+                ctx.strokeStyle = '#2b1d11'; ctx.lineWidth = 8;
+                ctx.beginPath(); ctx.arc(0, 0, launcher.radius, Math.PI, 0); ctx.stroke();
             }
 
             ctx.restore();
-            ctx.shadowBlur = 0;
         }
 
         // Ana Oyun Döngüsü
         function loop() {
-            // Ekranda pürüzsüzlük ayarlarını koru
             ctx.imageSmoothingEnabled = true;
             ctx.imageSmoothingQuality = 'high';
-
             ctx.clearRect(0, 0, width, height);
 
-            // Arka Plan
-            if (bgImage.complete) {
-                ctx.drawImage(bgImage, 0, 0, width, height);
-            } else {
-                ctx.fillStyle = "#0d021a"; ctx.fillRect(0, 0, width, height);
-            }
+            if (bgImage.complete) ctx.drawImage(bgImage, 0, 0, width, height);
+            else { ctx.fillStyle = "#0d021a"; ctx.fillRect(0, 0, width, height); }
 
             drawLauncher();
 
@@ -301,12 +298,10 @@
                 let arrow = arrows[i];
                 arrow.update();
                 arrow.draw();
-
-                if (arrow.x < -50 || arrow.x > width + 50 || arrow.y > height + 50) {
+                if (arrow.x < -100 || arrow.x > width + 100 || arrow.y > height + 100) {
                     arrows.splice(i, 1);
                     continue;
                 }
-
                 for (let j = targets.length - 1; j >= 0; j--) {
                     let target = targets[j];
                     let dist = Math.hypot(arrow.x - target.x, arrow.y - target.y);
@@ -325,8 +320,7 @@
                 let target = targets[i];
                 target.update();
                 target.draw();
-
-                if ((target.speed > 0 && target.x > width + 150) || (target.speed < 0 && target.x < -150)) {
+                if ((target.speed > 0 && target.x > width + 200) || (target.speed < 0 && target.x < -200)) {
                     targets.splice(i, 1);
                 }
             }
@@ -334,7 +328,6 @@
             requestAnimationFrame(loop);
         }
 
-        // İlk Çalıştırma
         resize();
         loop();
     </script>
