@@ -1,0 +1,253 @@
+<!DOCTYPE html>
+<html lang="tr">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Halloween Archery - Real Monsters</title>
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            user-select: none;
+            -webkit-user-select: none;
+        }
+
+        body,
+        html {
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            background-color: #0d021a;
+            font-family: 'Courier New', Courier, monospace;
+        }
+
+        canvas {
+            display: block;
+            width: 100%;
+            height: 100%;
+        }
+
+        #ui {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            color: #ff5500;
+            font-size: 24px;
+            font-weight: bold;
+            text-shadow: 2px 2px 8px #000, 0 0 10px #ff5500;
+            pointer-events: none;
+            z-index: 10;
+        }
+    </style>
+</head>
+
+<body>
+
+    <div id="ui">SKOR: <span id="score">0</span></div>
+    <canvas id="gameCanvas"></canvas>
+
+    <script>
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+        const scoreEl = document.getElementById('score');
+
+        let score = 0;
+        let width, height;
+
+        // Arka plan resmi
+        const bgImage = new Image();
+        bgImage.src = "https://static.vecteezy.com/system/resources/thumbnails/029/731/971/small_2x/halloween-pumpkins-against-the-backdrop-of-a-scary-terrifying-house-and-forest-on-a-dark-night-halloween-background-photo.jpg";
+
+        // Yay ve El Ayarları
+        const launcher = {
+            x: 0,
+            y: 0,
+            radius: 50,
+            isDragging: false,
+            dragX: 0,
+            dragY: 0,
+            maxDrag: 150
+        };
+
+        let arrows = [];
+        let targets = [];
+
+        function resize() {
+            width = canvas.width = window.innerWidth;
+            height = canvas.height = window.innerHeight;
+            launcher.x = width / 2;
+            launcher.y = height - 60;
+        }
+
+        // ==========================================
+        //  GERÇEKÇİ HALLOWEEN CANAVARLARI (Gelişmiş SVG)
+        // ==========================================
+        const monsterAssets = {
+            // 1. Zombi Ejderha Balığı (Yeşil Işıltılı, Kemikli ve Vahşi)
+            dragonFish: new Image(),
+            // 2. Şeytani Balkabağı (Yarasa Kanatlı ve Korkunç Gülüşlü)
+            evilPumpkin: new Image(),
+            // 3. Ölüm Balığı (Azrail Pelerinli, Kuru Kafalı)
+            reaperFish: new Image()
+        };
+
+        // Gelişmiş yüksek kaliteli SVG string'leri (Base64 simülasyonu / Profesyonel çizim vektörleri)
+        monsterAssets.dragonFish.src = `data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><defs><linearGradient id="g1" x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stop-color="%231a3300"/><stop offset="50%" stop-color="%234d9900"/><stop offset="100%" stop-color="%230d1a00"/></linearGradient><filter id="glow"><feGaussianBlur stdDeviation="2" result="coloredBlur"/><feMerge><feMergeNode in="coloredBlur"/><feMergeNode in="SourceGraphic"/></feMerge></filter></defs><path d="M10,50 C30,20 70,20 90,50 C70,80 30,80 10,50 Z" fill="url(%23g1)" stroke="%2366ff00" stroke-width="2"/><path d="M20,40 Q40,10 35,45 Q55,15 50,48 Q70,20 65,50" fill="none" stroke="%2399e63d" stroke-width="3" stroke-linecap="round"/><path d="M90,50 L75,35 L80,50 L75,65 Z" fill="%230d1a00" stroke="%2366ff00"/><circle cx="25" cy="40" r="5" fill="%23fff"/><circle cx="24" cy="40" r="2.5" fill="%23ff0000" filter="url(%23glow)"/><path d="M15,55 Q25,65 35,55 L30,52 L25,56 L20,52 Z" fill="%23fff"/><path d="M40,25 Q50,5 65,15 Q50,20 40,25 Z" fill="%231a3300" stroke="%2366ff00"/></svg>`;
+
+        monsterAssets.evilPumpkin.src = `data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><defs><radialGradient id="g2" cx="50%" cy="50%" r="50%"><stop offset="0%" stop-color="%23ff9900"/><stop offset="70%" stop-color="%23cc5200"/><stop offset="100%" stop-color="%234a1a00"/></radialGradient><filter id="glow2"><feGaussianBlur stdDeviation="3" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter></defs><path d="M10,35 Q-15,10 5,5 Q15,15 25,30 Z M90,35 Q115,10 95,5 Q85,15 75,30 Z" fill="%23111" stroke="%23ff3300"/><ellipse cx="50" cy="50" rx="40" ry="35" fill="url(%23g2)"/><path d="M45,15 Q50,5 55,15 Z" fill="%232d5900"/><path d="M30,40 L40,35 L35,48 Z M70,40 L60,35 L65,48 Z" fill="%23ffea00" filter="url(%23glow2)"/><path d="M25,60 Q50,85 75,60 Q65,65 50,62 Q35,65 25,60 M35,62 L40,68 L45,63 L50,72 L55,63 L60,68 L65,62" fill="%23ffea00" filter="url(%23glow2)"/><path d="M20,50 C15,30 35,20 50,20 C65,20 85,30 80,50" fill="none" stroke="%23331400" stroke-width="1.5"/></svg>`;
+
+        monsterAssets.reaperFish.src = `data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><defs><filter id="g3"><feGaussianBlur stdDeviation="1.5" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter></defs><path d="M80,50 C60,25 20,30 15,50 C20,70 60,75 80,50" fill="%231a0d2e" stroke="%234a2574" stroke-width="2"/><path d="M15,50 C10,35 30,15 50,20 C40,35 45,65 15,50" fill="%230b0514"/><path d="M45,35 Q30,35 35,50 Q30,65 45,65 Q55,50 45,35 Z" fill="%23f2f2f2" stroke="%23999" stroke-width="2"/><circle cx="38" cy="45" r="4" fill="%23000"/><circle cx="48" cy="45" r="4" fill="%23000"/><circle cx="38" cy="45" r="1.5" fill="%2300ffcc" filter="url(%23g3)"/><circle cx="48" cy="45" r="1.5" fill="%2300ffcc" filter="url(%23g3)"/><path d="M38,55 Q43,50 48,55" fill="none" stroke="%23000" stroke-width="2"/><path d="M80,50 L95,35 L90,50 L95,65 Z" fill="%234a2574"/></svg>`;
+
+
+        // Canavar Yönetim Sınıfı
+        class Monster {
+            constructor() {
+                const types = ['dragonFish', 'evilPumpkin', 'reaperFish'];
+                this.type = types[Math.floor(Math.random() * types.length)];
+                this.image = monsterAssets[this.type];
+
+                this.x = Math.random() > 0.5 ? -120 : width + 120;
+                this.y = Math.random() * (height * 0.45) + 60;
+                this.speed = (Math.random() * 1.8 + 1.5) * (this.x < 0 ? 1 : -1);
+
+                // Canavara göre boyut ayarı (Daha heybetli dursunlar)
+                this.size = this.type === 'evilPumpkin' ? 95 : 85;
+                this.radius = this.size * 0.4; // Gerçekçi çarpışma alanı
+            }
+
+            update() {
+                this.x += this.speed;
+                // Hafif aşağı yukarı süzülme efekti (Canlılık katması için)
+                this.y += Math.sin(this.x * 0.02) * 0.5;
+            }
+
+            draw() {
+                ctx.save();
+                ctx.translate(this.x, this.y);
+
+                // Hareket yönüne göre canavarı aynala
+                if (this.speed < 0) ctx.scale(-1, 1);
+
+                // SVG görselini canvas'a kusursuz çiz
+                ctx.drawImage(this.image, -this.size / 2, -this.size / 2, this.size, this.size);
+
+                ctx.restore();
+            }
+        }
+
+        // Lanetli Ok Sınıfı
+        class CurseArrow {
+            constructor(x, y, vx, vy) {
+                this.x = x; this.y = y; this.vx = vx; this.vy = vy;
+                this.gravity = 0.16; this.angle = 0;
+            }
+
+            update() {
+                this.vy += this.gravity;
+                this.x += this.vx;
+                this.y += this.vy;
+                this.angle = Math.atan2(this.vy, this.vx);
+            }
+
+            draw() {
+                ctx.save();
+                ctx.translate(this.x, this.y); ctx.rotate(this.angle);
+
+                // Ok Gövdesi (Eski rünlü ahşap)
+                ctx.strokeStyle = '#3a2d54'; ctx.lineWidth = 4;
+                ctx.beginPath(); ctx.moveTo(-35, 0); ctx.lineTo(0, 0); ctx.stroke();
+
+                // Ok Arkası (Yarasa Kanadı)
+                ctx.fillStyle = '#8a0303';
+                ctx.beginPath(); ctx.moveTo(-35, 0); ctx.lineTo(-45, -8); ctx.lineTo(-40, 0); ctx.lineTo(-45, 8); ctx.closePath(); ctx.fill();
+
+                // Parlayan Ok Ucu
+                ctx.fillStyle = '#49e31b'; ctx.shadowColor = '#49e31b'; ctx.shadowBlur = 12;
+                ctx.beginPath(); ctx.moveTo(0, 0); ctx.lineTo(-12, -7); ctx.lineTo(10, 0); ctx.lineTo(-12, 7); ctx.closePath(); ctx.fill();
+
+                ctx.restore(); ctx.shadowBlur = 0;
+            }
+        }
+
+        // Kontroller (PC & Mobil)
+        function getPos(e) { const rect = canvas.getBoundingClientRect(); const clientX = e.touches ? e.touches[0].clientX : e.clientX; const clientY = e.touches ? e.touches[0].clientY : e.clientY; return { x: clientX - rect.left, y: clientY - rect.top }; }
+        function startDrag(e) { const pos = getPos(e); const dist = Math.hypot(pos.x - launcher.x, pos.y - launcher.y); if (dist < launcher.radius + 50) { launcher.isDragging = true; launcher.dragX = pos.x; launcher.dragY = pos.y; } }
+        function doDrag(e) { if (!launcher.isDragging) return; const pos = getPos(e); const dx = pos.x - launcher.x, dy = pos.y - launcher.y, dist = Math.hypot(dx, dy); if (dist > launcher.maxDrag) { launcher.dragX = launcher.x + (dx / dist) * launcher.maxDrag; launcher.dragY = launcher.y + (dy / dist) * launcher.maxDrag; } else { launcher.dragX = pos.x; launcher.dragY = pos.y; } }
+        function endDrag(e) { if (!launcher.isDragging) return; launcher.isDragging = false; const dx = launcher.x - launcher.dragX, dy = launcher.y - launcher.dragY, power = 0.16; arrows.push(new CurseArrow(launcher.x, launcher.y - 20, dx * power, dy * power)); }
+
+        window.addEventListener('resize', resize);
+        canvas.addEventListener('mousedown', startDrag); window.addEventListener('mousemove', doDrag); window.addEventListener('mouseup', endDrag);
+        canvas.addEventListener('touchstart', startDrag, { passive: true }); canvas.addEventListener('touchmove', doDrag, { passive: true }); canvas.addEventListener('touchend', endDrag);
+
+        // Canavar Döngüsü
+        setInterval(() => { if (targets.length < 4) { targets.push(new Monster()); } }, 1600);
+
+        // Gotik Yay ve Kemikli El Çizimi
+        function drawLauncher() {
+            ctx.save();
+            ctx.translate(launcher.x, launcher.y);
+
+            // Gerilen İp
+            ctx.strokeStyle = launcher.isDragging ? '#ff3300' : '#44e31b'; ctx.lineWidth = 2; ctx.beginPath();
+            if (launcher.isDragging) {
+                let localDragX = launcher.dragX - launcher.x, localDragY = launcher.dragY - launcher.y;
+                ctx.moveTo(-50, -10); ctx.lineTo(localDragX, localDragY); ctx.lineTo(50, -10);
+            } else {
+                ctx.moveTo(-50, -10); ctx.lineTo(50, -10);
+            }
+            ctx.stroke();
+
+            // Gotik Yay
+            ctx.strokeStyle = '#2b1d11'; ctx.lineWidth = 10; ctx.lineCap = 'round'; ctx.shadowColor = '#000'; ctx.shadowBlur = 10; ctx.beginPath(); ctx.arc(0, 15, 52, Math.PI, 0, false); ctx.stroke();
+            ctx.fillStyle = '#ff7700'; ctx.beginPath(); ctx.arc(0, 15, 14, 0, Math.PI * 2); ctx.fill();
+
+            // İskelet El
+            ctx.fillStyle = '#d1ccb8'; ctx.strokeStyle = '#423d30'; ctx.lineWidth = 1.5; ctx.fillRect(-8, 25, 16, 50);
+            for (let i = -10; i <= 10; i += 6) { ctx.beginPath(); ctx.arc(i, 20, 4, 0, Math.PI * 2); ctx.fill(); ctx.stroke(); }
+            ctx.restore(); ctx.shadowBlur = 0;
+        }
+
+        // Oyun Döngüsü
+        function loop() {
+            ctx.clearRect(0, 0, width, height);
+
+            // Arka Plan
+            if (bgImage.complete) ctx.drawImage(bgImage, 0, 0, width, height);
+            else { ctx.fillStyle = "#0d021a"; ctx.fillRect(0, 0, width, height); }
+
+            drawLauncher();
+
+            // Oklar
+            for (let i = arrows.length - 1; i >= 0; i--) {
+                let arrow = arrows[i]; arrow.update(); arrow.draw();
+                if (arrow.x < -50 || arrow.x > width + 50 || arrow.y > height + 50) { arrows.splice(i, 1); continue; }
+
+                // Çarpışma
+                for (let j = targets.length - 1; j >= 0; j--) {
+                    let target = targets[j];
+                    let dist = Math.hypot(arrow.x - target.x, arrow.y - target.y);
+                    if (dist < target.radius) {
+                        score += 20;
+                        scoreEl.innerText = score;
+                        targets.splice(j, 1); arrows.splice(i, 1);
+                        break;
+                    }
+                }
+            }
+
+            // Canavarlar
+            for (let i = targets.length - 1; i >= 0; i--) {
+                let target = targets[i]; target.update(); target.draw();
+                if ((target.speed > 0 && target.x > width + 150) || (target.speed < 0 && target.x < -150)) { targets.splice(i, 1); }
+            }
+
+            requestAnimationFrame(loop);
+        }
+
+        resize(); loop();
+    </script>
+</body>
+
+</html>
