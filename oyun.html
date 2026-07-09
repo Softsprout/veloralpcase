@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Halloween Archery - Fixed Drag Power Bug</title>
+    <title>Halloween Archery - Bigger Hitbox Edition</title>
     <style>
         * {
             box-sizing: border-box;
@@ -113,12 +113,28 @@
             osc.stop(audioCtx.currentTime + 0.12);
         }
 
+        function playComboSound() {
+            if (!audioCtx) return;
+            const osc = audioCtx.createOscillator();
+            const gainNode = audioCtx.createGain();
+            osc.type = 'sine';
+            osc.frequency.setValueAtTime(850, audioCtx.currentTime);
+            osc.frequency.exponentialRampToValueAtTime(300, audioCtx.currentTime + 0.15);
+            gainNode.gain.setValueAtTime(0.6, audioCtx.currentTime);
+            gainNode.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.15);
+            osc.connect(gainNode);
+            gainNode.connect(audioCtx.destination);
+            osc.start();
+            osc.stop(audioCtx.currentTime + 0.15);
+        }
+
         function resetGame() {
             score = 0;
             lives = 3;
             isGameOver = false;
             arrows = [];
             targets = [];
+            combos = [];
             scoreEl.innerText = score;
             livesEl.innerText = lives;
         }
@@ -150,13 +166,14 @@
             dragStartY: 0,
             dragX: 0,
             dragY: 0,
-            maxDrag: 140, // Gücün kilitlendiği tavan piksel mesafesi
+            maxDrag: 130,
             width: 120,
             height: 90
         };
 
         let arrows = [];
         let targets = [];
+        let combos = [];
 
         function resize() {
             const dpr = window.devicePixelRatio || 1;
@@ -174,6 +191,44 @@
             launcher.y = height - 70;
         }
 
+        // Animated Combo Text Sınıfı
+        class AnimatedComboText {
+            constructor(x, y, multiplier) {
+                this.x = x;
+                this.y = y;
+                this.text = `COMBO ${multiplier}X`;
+                this.alpha = 1.0;
+                this.scale = 14;
+                this.maxScale = 32;
+                this.life = 1.0;
+            }
+            update() {
+                this.y -= 0.8;
+                if (this.scale < this.maxScale) {
+                    this.scale += 2.5;
+                }
+                this.life -= 0.02;
+                if (this.life <= 0.5) {
+                    this.alpha = this.life * 2;
+                }
+            }
+            draw() {
+                if (this.alpha <= 0) return;
+                ctx.save();
+                ctx.globalAlpha = this.alpha;
+                ctx.fillStyle = '#ff5500';
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'middle';
+                ctx.shadowColor = '#ff5500';
+                ctx.shadowBlur = 12;
+                ctx.shadowOffsetX = 2;
+                ctx.shadowOffsetY = 2;
+                ctx.font = `bold ${Math.floor(this.scale)}px "Courier New", Courier, monospace`;
+                ctx.fillText(this.text, this.x, this.y);
+                ctx.restore();
+            }
+        }
+
         // Canavar Sınıfı
         class HalloweenMonster {
             constructor() {
@@ -181,19 +236,49 @@
                 this.image = monsterImages[this.imgIndex];
                 this.x = Math.random() > 0.5 ? -200 : width + 200;
                 this.y = Math.random() * (height * 0.45) + 60;
-                this.speed = (Math.random() * 1.8 + 1.5) * (this.x < 0 ? 1 : -1);
+                this.speedX = (Math.random() * 1.8 + 1.5) * (this.x < 0 ? 1 : -1);
+                this.speedY = 0;
                 this.height = 65;
                 this.width = 110;
-                this.radius = this.height * 0.45;
+
+                // --- HITBOX BÜYÜTÜLDÜ ---
+                // Eskiden %45 olan çarpışma alanı %70'e çıkarılarak canavarların vurulması belirgin şekilde kolaylaştırıldı.
+                this.radius = this.height * 0.70;
+
+                this.isDead = false;
+                this.rotation = 0;
+                this.rotationSpeed = 0;
+                this.comboChain = 1;
             }
+
+            hit(impactVx) {
+                this.isDead = true;
+                this.speedX = impactVx * 0.6;
+                this.speedY = -3;
+                this.rotationSpeed = (impactVx > 0 ? 0.15 : -0.15);
+            }
+
             update() {
-                this.x += this.speed;
-                this.y += Math.sin(this.x * 0.02) * 0.6;
+                if (!this.isDead) {
+                    this.x += this.speedX;
+                    this.y += Math.sin(this.x * 0.02) * 0.6;
+                } else {
+                    this.speedY += 0.25;
+                    this.x += this.speedX;
+                    this.y += this.speedY;
+                    this.rotation += this.rotationSpeed;
+                }
             }
+
             draw() {
                 ctx.save();
                 ctx.translate(Math.floor(this.x), Math.floor(this.y));
-                if (this.speed > 0) ctx.scale(-1, 1);
+                ctx.rotate(this.rotation);
+
+                if (!this.isDead && this.speedX > 0) {
+                    ctx.scale(-1, 1);
+                }
+
                 if (this.image.complete) {
                     const aspectRatio = this.image.naturalWidth / this.image.naturalHeight;
                     this.width = this.height * aspectRatio;
@@ -210,7 +295,7 @@
             constructor(x, y, vx, vy) {
                 this.x = x; this.y = y; this.vx = vx; this.vy = vy;
                 this.gravity = 0.32; this.angle = 0;
-                this.height = 20; // İdeal dengeli ok yüksekliği
+                this.height = 20;
                 this.width = 80;
                 this.hasHit = false;
             }
@@ -248,11 +333,7 @@
         }
         function startDrag(e) {
             initAudioEngine();
-
-            if (isGameOver) {
-                resetGame();
-                return;
-            }
+            if (isGameOver) { resetGame(); return; }
 
             const pos = getPos(e);
             launcher.isDragging = true;
@@ -269,7 +350,6 @@
             const dy = pos.y - launcher.dragStartY;
             const dist = Math.hypot(dx, dy);
 
-            // Sürükleme sınırlandırılıyor (Görsel ve fiziksel olarak eşitlendi)
             if (dist > launcher.maxDrag) {
                 const angle = Math.atan2(dy, dx);
                 launcher.dragX = launcher.dragStartX + Math.cos(angle) * launcher.maxDrag;
@@ -283,7 +363,6 @@
             if (!launcher.isDragging || isGameOver) return;
             launcher.isDragging = false;
 
-            // --- BUG FIX: Hız vektörleri artık ham parmaktan değil, sınırlandırılmış kilitli pozisyondan hesaplanıyor ---
             const dx = launcher.dragStartX - launcher.dragX;
             const dy = launcher.dragStartY - launcher.dragY;
 
@@ -305,7 +384,6 @@
             if (targets.length < 4 && !isGameOver) targets.push(new HalloweenMonster());
         }, 1500);
 
-        // Parabolik Gösterge Çizimi
         function drawTrajectoryIndicator(vx, vy) {
             ctx.save();
             let trajX = launcher.x;
@@ -330,19 +408,16 @@
             ctx.restore();
         }
 
-        // Yay Çizimi
         function drawLauncher() {
             ctx.save();
             let angle = 0;
             let launchVx = 0, launchVy = 0;
 
             if (launcher.isDragging) {
-                // Sınırlandırılmış kilitli değerleri baz alarak nişangah ve açıyı hesapla
                 const dragDx = launcher.dragStartX - launcher.dragX;
                 const dragDy = launcher.dragStartY - launcher.dragY;
 
                 angle = Math.atan2(-dragDy, -dragDx) - Math.PI / 2;
-
                 launchVx = dragDx * GLOBAL_POWER;
                 launchVy = dragDy * GLOBAL_POWER;
 
@@ -365,13 +440,12 @@
                 ctx.beginPath(); ctx.arc(0, 0, launcher.radius * 1.5, Math.PI, 0); ctx.stroke();
             }
 
-            // Nişan Alırken Yayın Ortasındaki Ok
             if (launcher.isDragging && arrowImage.complete) {
                 const stretchDist = Math.hypot(launcher.dragStartX - launcher.dragX, launcher.dragStartY - launcher.dragY);
                 ctx.save();
                 ctx.rotate(Math.PI / 2);
                 const arrowAspect = arrowImage.naturalWidth / arrowImage.naturalHeight;
-                let arrowH = 20; // Uçan ok boyutuyla tamamen eşitlendi
+                let arrowH = 20;
                 let arrowW = arrowH * arrowAspect;
                 ctx.drawImage(arrowImage, -arrowW / 2 + (stretchDist - 20), -arrowH / 2, arrowW, arrowH);
                 ctx.restore();
@@ -383,27 +457,21 @@
             ctx.save();
             ctx.fillStyle = 'rgba(0, 0, 0, 0.75)';
             ctx.fillRect(0, 0, width, height);
-
             ctx.fillStyle = '#ff5500';
             ctx.textAlign = 'center';
             ctx.textBaseline = 'middle';
-
             ctx.shadowColor = '#ff5500';
             ctx.shadowBlur = 15;
             ctx.shadowOffsetX = 2;
             ctx.shadowOffsetY = 2;
-
             ctx.font = 'bold 48px "Courier New", Courier, monospace';
             ctx.fillText('GAME OVER', width / 2, height / 2 - 30);
-
             ctx.font = 'bold 20px "Courier New", Courier, monospace';
             ctx.shadowBlur = 8;
             ctx.fillText('YENİDEN BAŞLAMAK İÇİN DOKUN', width / 2, height / 2 + 40);
-
             ctx.restore();
         }
 
-        // Ana Oyun Döngüsü
         function loop() {
             ctx.imageSmoothingEnabled = true;
             ctx.imageSmoothingQuality = 'high';
@@ -412,9 +480,7 @@
             if (bgImage.complete) ctx.drawImage(bgImage, 0, 0, width, height);
             else { ctx.fillStyle = "#0d021a"; ctx.fillRect(0, 0, width, height); }
 
-            if (!isGameOver) {
-                drawLauncher();
-            }
+            if (!isGameOver) drawLauncher();
 
             // Oklar Kontrolü
             for (let i = arrows.length - 1; i >= 0; i--) {
@@ -426,9 +492,7 @@
                     if (!arrow.hasHit) {
                         lives--;
                         livesEl.innerText = lives;
-                        if (lives <= 0) {
-                            isGameOver = true;
-                        }
+                        if (lives <= 0) isGameOver = true;
                     }
                     arrows.splice(i, 1);
                     continue;
@@ -436,6 +500,8 @@
 
                 for (let j = targets.length - 1; j >= 0; j--) {
                     let target = targets[j];
+                    if (target.isDead) continue;
+
                     let dist = Math.hypot(arrow.x - target.x, arrow.y - target.y);
                     if (dist < target.radius) {
                         score += (target.imgIndex + 1) * 10;
@@ -449,27 +515,61 @@
 
                         arrow.hasHit = true;
                         playHitSound();
-
-                        targets.splice(j, 1);
+                        target.hit(arrow.vx);
                         arrows.splice(i, 1);
                         break;
                     }
                 }
             }
 
-            // Canavarlar Kontrolü
+            // Canavarlar Kontrolü & Kombo Yönetimi
             for (let i = targets.length - 1; i >= 0; i--) {
                 let target = targets[i];
                 if (!isGameOver) target.update();
                 target.draw();
-                if ((target.speed > 0 && target.x > width + 200) || (target.speed < 0 && target.x < -200)) {
+
+                if (target.isDead) {
+                    for (let j = targets.length - 1; j >= 0; j--) {
+                        let other = targets[j];
+                        if (i !== j && !other.isDead) {
+                            let hitDist = Math.hypot(target.x - other.x, target.y - other.y);
+                            if (hitDist < (target.radius + other.radius)) {
+
+                                other.comboChain = target.comboChain + 1;
+                                other.hit(target.speedX * 1.2);
+
+                                lives++;
+                                livesEl.innerText = lives;
+
+                                score += (other.imgIndex + 1) * 20 * other.comboChain;
+                                scoreEl.innerText = score;
+
+                                playComboSound();
+
+                                let midX = (target.x + other.x) / 2;
+                                let midY = (target.y + other.y) / 2;
+                                combos.push(new AnimatedComboText(midX, midY, other.comboChain));
+                            }
+                        }
+                    }
+                }
+
+                if (target.y > height + 100 || target.x < -250 || target.x > width + 250) {
                     targets.splice(i, 1);
                 }
             }
 
-            if (isGameOver) {
-                drawGameOverScreen();
+            // Kombo Animasyonları Çizimi
+            for (let i = combos.length - 1; i >= 0; i--) {
+                let comboText = combos[i];
+                comboText.update();
+                comboText.draw();
+                if (comboText.life <= 0) {
+                    combos.splice(i, 1);
+                }
             }
+
+            if (isGameOver) drawGameOverScreen();
 
             requestAnimationFrame(loop);
         }
