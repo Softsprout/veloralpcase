@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Halloween Archery - Premium Weapon Edition</title>
+    <title>Halloween Archery - Fixed Drag Power Bug</title>
     <style>
         * {
             box-sizing: border-box;
@@ -41,22 +41,87 @@
             text-shadow: 2px 2px 8px #000, 0 0 10px #ff5500;
             pointer-events: none;
             z-index: 10;
+            line-height: 1.5;
         }
     </style>
 </head>
 
 <body>
 
-    <div id="ui">SKOR: <span id="score">0</span></div>
+    <div id="ui">
+        SKOR: <span id="score">0</span><br>
+        EN YÜKSEK: <span id="highScore">0</span><br>
+        YAY HAKKI: <span id="lives">3</span>
+    </div>
     <canvas id="gameCanvas"></canvas>
 
     <script>
         const canvas = document.getElementById('gameCanvas');
         const ctx = canvas.getContext('2d');
         const scoreEl = document.getElementById('score');
+        const highScoreEl = document.getElementById('highScore');
+        const livesEl = document.getElementById('lives');
 
         let score = 0;
+        let highScore = localStorage.getItem('halloween_highscore') ? parseInt(localStorage.getItem('halloween_highscore')) : 0;
+        let lives = 3;
+        let isGameOver = false;
         let width, height;
+
+        highScoreEl.innerText = highScore;
+
+        // Ok ve Yay Fizik Sabitleri
+        const GLOBAL_GRAVITY = 0.32;
+        const GLOBAL_POWER = 0.16;
+
+        // --- HARİCİ LİNKSİZ DONANIMSAL SES MOTORU ---
+        let audioCtx = null;
+
+        function initAudioEngine() {
+            if (!audioCtx) {
+                audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            }
+        }
+
+        function playBowShootSound() {
+            if (!audioCtx) return;
+            const osc = audioCtx.createOscillator();
+            const gainNode = audioCtx.createGain();
+            osc.type = 'sine';
+            osc.frequency.setValueAtTime(400, audioCtx.currentTime);
+            osc.frequency.exponentialRampToValueAtTime(80, audioCtx.currentTime + 0.15);
+            gainNode.gain.setValueAtTime(0.4, audioCtx.currentTime);
+            gainNode.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.15);
+            osc.connect(gainNode);
+            gainNode.connect(audioCtx.destination);
+            osc.start();
+            osc.stop(audioCtx.currentTime + 0.15);
+        }
+
+        function playHitSound() {
+            if (!audioCtx) return;
+            const osc = audioCtx.createOscillator();
+            const gainNode = audioCtx.createGain();
+            osc.type = 'sine';
+            osc.frequency.setValueAtTime(600, audioCtx.currentTime);
+            osc.frequency.exponentialRampToValueAtTime(150, audioCtx.currentTime + 0.12);
+            gainNode.gain.setValueAtTime(0.5, audioCtx.currentTime);
+            gainNode.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.12);
+            osc.connect(gainNode);
+            gainNode.connect(audioCtx.destination);
+            osc.start();
+            osc.stop(audioCtx.currentTime + 0.12);
+        }
+
+        function resetGame() {
+            score = 0;
+            lives = 3;
+            isGameOver = false;
+            arrows = [];
+            targets = [];
+            scoreEl.innerText = score;
+            livesEl.innerText = lives;
+        }
 
         // Arka plan resmi
         const bgImage = new Image();
@@ -68,8 +133,7 @@
         monsterImages[1].src = "https://raw.githubusercontent.com/Softsprout/veloralpcase/refs/heads/main/monster2.png";
         monsterImages[2].src = "https://raw.githubusercontent.com/Softsprout/veloralpcase/refs/heads/main/monster3.png";
 
-        // --- YENİ SİLAH VE OK GÖRSELLERİ ---
-        // GitHub'a yüklediğin yay ve ok linklerini buraya yapıştır
+        // Yay ve Ok Görselleri
         const launcherImage = new Image();
         launcherImage.src = "https://raw.githubusercontent.com/Softsprout/veloralpcase/refs/heads/main/launcher.png";
 
@@ -82,11 +146,13 @@
             y: 0,
             radius: 40,
             isDragging: false,
+            dragStartX: 0,
+            dragStartY: 0,
             dragX: 0,
             dragY: 0,
-            maxDrag: 140,
-            width: 120,  // Yayın ekrandaki genişliği
-            height: 90   // Yayın ekrandaki yüksekliği
+            maxDrag: 140, // Gücün kilitlendiği tavan piksel mesafesi
+            width: 120,
+            height: 90
         };
 
         let arrows = [];
@@ -139,41 +205,31 @@
             }
         }
 
-        // GÖRSEL TABANLI YENİ OK SINIFI
+        // Ok Sınıfı
         class CurseArrow {
             constructor(x, y, vx, vy) {
                 this.x = x; this.y = y; this.vx = vx; this.vy = vy;
-                this.gravity = 0.16; this.angle = 0;
-
-                // Ok boyutu (Heybetli ve net durması için)
-                this.height = 38;
-                this.width = 100;
+                this.gravity = 0.32; this.angle = 0;
+                this.height = 20; // İdeal dengeli ok yüksekliği
+                this.width = 80;
+                this.hasHit = false;
             }
             update() {
                 this.vy += this.gravity;
                 this.x += this.vx;
                 this.y += this.vy;
-
-                // Gitmesi gereken ham hareket açısını hesaplıyoruz
                 this.angle = Math.atan2(this.vy, this.vx);
             }
             draw() {
                 ctx.save();
                 ctx.translate(Math.floor(this.x), Math.floor(this.y));
-
-                // --- OK YÖNÜ DÜZELTME AYARI ---
-                // Eğer ok havada giderken ucu yerine arkası önde gidiyorsa, 
-                // buradaki "+ Math.PI" ifadesini silebilir veya değiştirebilirsin.
                 ctx.rotate(this.angle + Math.PI);
 
                 if (arrowImage.complete) {
                     ctx.imageSmoothingEnabled = true;
                     ctx.imageSmoothingQuality = 'high';
-
                     const aspectRatio = arrowImage.naturalWidth / arrowImage.naturalHeight;
                     this.width = this.height * aspectRatio;
-
-                    // Okun tam ucunun (plazma alevinin) canavara çarpması için merkezleme hizası
                     ctx.drawImage(arrowImage, -this.width / 2, -this.height / 2, this.width, this.height);
                 } else {
                     ctx.strokeStyle = '#49e31b'; ctx.lineWidth = 4;
@@ -191,35 +247,50 @@
             return { x: clientX - rect.left, y: clientY - rect.top };
         }
         function startDrag(e) {
-            const pos = getPos(e);
-            const dist = Math.hypot(pos.x - launcher.x, pos.y - launcher.y);
-            if (dist < launcher.radius + 60) {
-                launcher.isDragging = true;
-                launcher.dragX = pos.x;
-                launcher.dragY = pos.y;
+            initAudioEngine();
+
+            if (isGameOver) {
+                resetGame();
+                return;
             }
+
+            const pos = getPos(e);
+            launcher.isDragging = true;
+            launcher.dragStartX = pos.x;
+            launcher.dragStartY = pos.y;
+            launcher.dragX = pos.x;
+            launcher.dragY = pos.y;
         }
         function doDrag(e) {
-            if (!launcher.isDragging) return;
+            if (!launcher.isDragging || isGameOver) return;
             const pos = getPos(e);
-            const dx = pos.x - launcher.x;
-            const dy = pos.y - launcher.y;
+
+            const dx = pos.x - launcher.dragStartX;
+            const dy = pos.y - launcher.dragStartY;
             const dist = Math.hypot(dx, dy);
+
+            // Sürükleme sınırlandırılıyor (Görsel ve fiziksel olarak eşitlendi)
             if (dist > launcher.maxDrag) {
-                launcher.dragX = launcher.x + (dx / dist) * launcher.maxDrag;
-                launcher.dragY = launcher.y + (dy / dist) * launcher.maxDrag;
+                const angle = Math.atan2(dy, dx);
+                launcher.dragX = launcher.dragStartX + Math.cos(angle) * launcher.maxDrag;
+                launcher.dragY = launcher.dragStartY + Math.sin(angle) * launcher.maxDrag;
             } else {
                 launcher.dragX = pos.x;
                 launcher.dragY = pos.y;
             }
         }
         function endDrag(e) {
-            if (!launcher.isDragging) return;
+            if (!launcher.isDragging || isGameOver) return;
             launcher.isDragging = false;
-            const dx = launcher.x - launcher.dragX;
-            const dy = launcher.y - launcher.dragY;
-            const power = 0.16;
-            arrows.push(new CurseArrow(launcher.x, launcher.y - 15, dx * power, dy * power));
+
+            // --- BUG FIX: Hız vektörleri artık ham parmaktan değil, sınırlandırılmış kilitli pozisyondan hesaplanıyor ---
+            const dx = launcher.dragStartX - launcher.dragX;
+            const dy = launcher.dragStartY - launcher.dragY;
+
+            if (Math.hypot(dx, dy) > 10) {
+                playBowShootSound();
+                arrows.push(new CurseArrow(launcher.x, launcher.y - 10, dx * GLOBAL_POWER, dy * GLOBAL_POWER));
+            }
         }
 
         window.addEventListener('resize', resize);
@@ -230,54 +301,104 @@
         canvas.addEventListener('touchmove', doDrag, { passive: true });
         window.addEventListener('touchend', endDrag);
 
-        setInterval(() => { if (targets.length < 4) targets.push(new HalloweenMonster()); }, 1500);
+        setInterval(() => {
+            if (targets.length < 4 && !isGameOver) targets.push(new HalloweenMonster());
+        }, 1500);
 
-        // GÖRSEL TABANLI YENİ YAY ÇİZİMİ
+        // Parabolik Gösterge Çizimi
+        function drawTrajectoryIndicator(vx, vy) {
+            ctx.save();
+            let trajX = launcher.x;
+            let trajY = launcher.y - 10;
+            let currentVx = vx;
+            let currentVy = vy;
+
+            ctx.fillStyle = '#49e31b';
+            ctx.shadowColor = '#49e31b';
+            ctx.shadowBlur = 10;
+
+            for (let i = 0; i < 4; i++) {
+                for (let step = 0; step < 7; step++) {
+                    currentVy += GLOBAL_GRAVITY;
+                    trajX += currentVx;
+                    trajY += currentVy;
+                }
+                ctx.beginPath();
+                ctx.arc(Math.floor(trajX), Math.floor(trajY), 5 - i * 0.8, 0, Math.PI * 2);
+                ctx.fill();
+            }
+            ctx.restore();
+        }
+
+        // Yay Çizimi
         function drawLauncher() {
             ctx.save();
-
             let angle = 0;
+            let launchVx = 0, launchVy = 0;
+
             if (launcher.isDragging) {
-                // Matematiksel yönü tersine çevirerek okun fırlatılacağı gerçek hedef açısını hesaplıyoruz
-                angle = Math.atan2(launcher.dragY - launcher.y, launcher.dragX - launcher.x) - Math.PI / 2;
+                // Sınırlandırılmış kilitli değerleri baz alarak nişangah ve açıyı hesapla
+                const dragDx = launcher.dragStartX - launcher.dragX;
+                const dragDy = launcher.dragStartY - launcher.dragY;
+
+                angle = Math.atan2(-dragDy, -dragDx) - Math.PI / 2;
+
+                launchVx = dragDx * GLOBAL_POWER;
+                launchVy = dragDy * GLOBAL_POWER;
+
+                if (Math.hypot(dragDx, dragDy) > 10) {
+                    drawTrajectoryIndicator(launchVx, launchVy);
+                }
             }
 
             ctx.translate(Math.floor(launcher.x), Math.floor(launcher.y));
             ctx.rotate(angle);
 
-            // 1. Gerilen İp (Görselin arkasında pürüzsüzce esnemesi için önce çiziliyor)
-            ctx.strokeStyle = launcher.isDragging ? 'rgba(255, 51, 0, 0.8)' : 'rgba(73, 227, 27, 0.6)';
-            ctx.lineWidth = 2.5;
-            ctx.beginPath();
-
-            if (launcher.isDragging) {
-                // İpin geriye doğru (çektiğimiz noktaya) esnemesini sağlıyoruz
-                let dist = Math.hypot(launcher.dragX - launcher.x, launcher.dragY - launcher.y);
-                ctx.moveTo(-launcher.width / 2.3, 0);
-                ctx.lineTo(0, -dist); // Yönü yukarı/aşağı kalibre etmek için eksi ekledik
-                ctx.moveTo(launcher.width / 2.3, 0);
-                ctx.lineTo(0, -dist);
-            } else {
-                ctx.moveTo(-launcher.width / 2.3, 0);
-                ctx.lineTo(launcher.width / 2.3, 0);
-            }
-            ctx.stroke();
-
-            // 2. Premium Gotik Yay Görseli (MSAA ve Netlik Modunda)
             if (launcherImage.complete) {
                 ctx.imageSmoothingEnabled = true;
                 ctx.imageSmoothingQuality = 'high';
-
                 const aspectRatio = launcherImage.naturalWidth / launcherImage.naturalHeight;
-                launcher.width = launcher.height * aspectRatio;
-
-                // Görselin tam merkezden kusursuz dönmesi için koordinat hizalaması
+                launcher.width = launcher.height * aspectRatio * 1.5;
                 ctx.drawImage(launcherImage, -launcher.width / 2, -launcher.height / 2, launcher.width, launcher.height);
             } else {
-                // Görsel yüklenene kadar yedek geometrik yay halkası
                 ctx.strokeStyle = '#2b1d11'; ctx.lineWidth = 8;
-                ctx.beginPath(); ctx.arc(0, 0, launcher.radius, Math.PI, 0); ctx.stroke();
+                ctx.beginPath(); ctx.arc(0, 0, launcher.radius * 1.5, Math.PI, 0); ctx.stroke();
             }
+
+            // Nişan Alırken Yayın Ortasındaki Ok
+            if (launcher.isDragging && arrowImage.complete) {
+                const stretchDist = Math.hypot(launcher.dragStartX - launcher.dragX, launcher.dragStartY - launcher.dragY);
+                ctx.save();
+                ctx.rotate(Math.PI / 2);
+                const arrowAspect = arrowImage.naturalWidth / arrowImage.naturalHeight;
+                let arrowH = 20; // Uçan ok boyutuyla tamamen eşitlendi
+                let arrowW = arrowH * arrowAspect;
+                ctx.drawImage(arrowImage, -arrowW / 2 + (stretchDist - 20), -arrowH / 2, arrowW, arrowH);
+                ctx.restore();
+            }
+            ctx.restore();
+        }
+
+        function drawGameOverScreen() {
+            ctx.save();
+            ctx.fillStyle = 'rgba(0, 0, 0, 0.75)';
+            ctx.fillRect(0, 0, width, height);
+
+            ctx.fillStyle = '#ff5500';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+
+            ctx.shadowColor = '#ff5500';
+            ctx.shadowBlur = 15;
+            ctx.shadowOffsetX = 2;
+            ctx.shadowOffsetY = 2;
+
+            ctx.font = 'bold 48px "Courier New", Courier, monospace';
+            ctx.fillText('GAME OVER', width / 2, height / 2 - 30);
+
+            ctx.font = 'bold 20px "Courier New", Courier, monospace';
+            ctx.shadowBlur = 8;
+            ctx.fillText('YENİDEN BAŞLAMAK İÇİN DOKUN', width / 2, height / 2 + 40);
 
             ctx.restore();
         }
@@ -291,23 +412,44 @@
             if (bgImage.complete) ctx.drawImage(bgImage, 0, 0, width, height);
             else { ctx.fillStyle = "#0d021a"; ctx.fillRect(0, 0, width, height); }
 
-            drawLauncher();
+            if (!isGameOver) {
+                drawLauncher();
+            }
 
-            // Oklar
+            // Oklar Kontrolü
             for (let i = arrows.length - 1; i >= 0; i--) {
                 let arrow = arrows[i];
-                arrow.update();
+                if (!isGameOver) arrow.update();
                 arrow.draw();
+
                 if (arrow.x < -100 || arrow.x > width + 100 || arrow.y > height + 100) {
+                    if (!arrow.hasHit) {
+                        lives--;
+                        livesEl.innerText = lives;
+                        if (lives <= 0) {
+                            isGameOver = true;
+                        }
+                    }
                     arrows.splice(i, 1);
                     continue;
                 }
+
                 for (let j = targets.length - 1; j >= 0; j--) {
                     let target = targets[j];
                     let dist = Math.hypot(arrow.x - target.x, arrow.y - target.y);
                     if (dist < target.radius) {
                         score += (target.imgIndex + 1) * 10;
                         scoreEl.innerText = score;
+
+                        if (score > highScore) {
+                            highScore = score;
+                            highScoreEl.innerText = highScore;
+                            localStorage.setItem('halloween_highscore', highScore);
+                        }
+
+                        arrow.hasHit = true;
+                        playHitSound();
+
                         targets.splice(j, 1);
                         arrows.splice(i, 1);
                         break;
@@ -315,14 +457,18 @@
                 }
             }
 
-            // Canavarlar
+            // Canavarlar Kontrolü
             for (let i = targets.length - 1; i >= 0; i--) {
                 let target = targets[i];
-                target.update();
+                if (!isGameOver) target.update();
                 target.draw();
                 if ((target.speed > 0 && target.x > width + 200) || (target.speed < 0 && target.x < -200)) {
                     targets.splice(i, 1);
                 }
+            }
+
+            if (isGameOver) {
+                drawGameOverScreen();
             }
 
             requestAnimationFrame(loop);
