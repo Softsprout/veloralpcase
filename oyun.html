@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Halloween Archery - SVG Pause Icon Edition</title>
+    <title>Halloween Archery</title>
     <style>
         * {
             box-sizing: border-box;
@@ -33,7 +33,7 @@
 
         #ui {
             position: absolute;
-            top: 15px;
+            top: 20px;
             left: 20px;
             color: #ff5500;
             font-size: 24px;
@@ -47,7 +47,7 @@
         /* Sağ üstteki parlayan gotik SVG Pause Butonu */
         #pauseBtn {
             position: absolute;
-            top: 15px;
+            top: 20px;
             right: 20px;
             background: none;
             border: none;
@@ -57,9 +57,14 @@
             display: flex;
             align-items: center;
             justify-content: center;
-            /* UI yazı stilleriyle uyumlu parlama efekti */
             filter: drop-shadow(2px 2px 4px #000) drop-shadow(0 0 8px #ff5500);
             transition: transform 0.1s ease;
+
+            /* --- MOBİL MAVİ TIKLAMA EFEKTİ FIX --- */
+            -webkit-tap-highlight-color: transparent;
+            /* Mobildeki mavi arka planı kaldırır */
+            outline: none;
+            /* Odaklanma çerçevesini kaldırır */
         }
 
         #pauseBtn:active {
@@ -82,7 +87,6 @@
         YAY HAKKI: <span id="lives">3</span>
     </div>
 
-    <!-- SVG İkonlu Yeni Pause Butonu -->
     <button id="pauseBtn">
         <svg id="pauseIcon" viewBox="0 0 24 24">
             <path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z" />
@@ -110,7 +114,7 @@
         highScoreEl.innerText = highScore;
 
         const GLOBAL_GRAVITY = 0.32;
-        const GLOBAL_POWER = 0.16;
+        const GLOBAL_POWER = 0.2;
 
         let audioCtx = null;
 
@@ -165,13 +169,10 @@
             osc.stop(audioCtx.currentTime + 0.15);
         }
 
-        // SVG İkon Değiştirme Fonksiyonu
         function updatePauseIcon() {
             if (isPaused) {
-                // Resume (Oynat/Üçgen) İkonu SVG kodu
                 pauseIcon.innerHTML = '<path d="M8 5v14l11-7z"/>';
             } else {
-                // Pause (Duraklat/İki Çizgi) İkonu SVG kodu
                 pauseIcon.innerHTML = '<path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/>';
             }
         }
@@ -185,17 +186,17 @@
             arrows = [];
             targets = [];
             combos = [];
+            particles = []; // Yeni can can parçacıkları temizle
             scoreEl.innerText = score;
             livesEl.innerText = lives;
         }
 
-        // Pause Butonuna Tıklama Olayı
         pauseBtn.addEventListener('click', (e) => {
             e.stopPropagation();
             if (isGameOver) return;
 
             isPaused = !isPaused;
-            updatePauseIcon(); // İkon görünümünü değiştir
+            updatePauseIcon();
         });
 
         const bgImage = new Image();
@@ -229,6 +230,7 @@
         let arrows = [];
         let targets = [];
         let combos = [];
+        let particles = []; // Parçacıkları tutacak dinamik dizi
 
         function resize() {
             const dpr = window.devicePixelRatio || 1;
@@ -244,6 +246,50 @@
 
             launcher.x = width / 2;
             launcher.y = height - 70;
+        }
+
+        // --- YENI: CADILAR BAYRAMI PLAZMA PARÇACIK SINIFI ---
+        class HalloweenParticle {
+            constructor(x, y) {
+                this.x = x;
+                this.y = y;
+                // Patlama efektinin her yöne dairesel yayılması için trigonometrik rastgele hızlar
+                const angle = Math.random() * Math.PI * 2;
+                const speed = Math.random() * 4 + 2;
+                this.vx = Math.cos(angle) * speed;
+                this.vy = Math.sin(angle) * speed - 1; // Hafif yukarı fırlama ivmesi
+
+                this.radius = Math.random() * 3.5 + 1.5; // Değişken boyutlar
+                this.alpha = 1.0;
+                this.decay = Math.random() * 0.02 + 0.015; // Kaybolma hızı
+                this.gravity = 0.15; // Parçacıklara özel hafif yerçekimi
+            }
+            update() {
+                this.vy += this.gravity;
+                this.x += this.vx;
+                this.y += this.vy;
+                this.alpha -= this.decay;
+            }
+            draw() {
+                if (this.alpha <= 0) return;
+                ctx.save();
+                ctx.globalAlpha = this.alpha;
+                ctx.fillStyle = '#49e31b'; // Cadı Yeşili
+                ctx.shadowColor = '#49e31b';
+                ctx.shadowBlur = 8; // Neon plazma parlaması
+
+                ctx.beginPath();
+                ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.restore();
+            }
+        }
+
+        // Belirtilen koordinatta plazma patlaması yaratan yardımcı fonksiyon
+        function createPlasmaBurst(x, y, count = 15) {
+            for (let i = 0; i < count; i++) {
+                particles.push(new HalloweenParticle(x, y));
+            }
         }
 
         class AnimatedComboText {
@@ -584,6 +630,10 @@
 
                         arrow.hasHit = true;
                         playHitSound();
+
+                        // --- INTEGRASYON: İLK OK VURUŞUNDA PLAZMA EFEKTİ TEPKİSİ ---
+                        createPlasmaBurst(arrow.x, arrow.y, 15);
+
                         target.hit(arrow.vx);
                         arrows.splice(i, 1);
                         break;
@@ -617,6 +667,10 @@
 
                                 let midX = (target.x + other.x) / 2;
                                 let midY = (target.y + other.y) / 2;
+
+                                // --- INTEGRASYON: KOMBO PATLAMASINDA BÜYÜK PLAZMA EFEKTİ ---
+                                createPlasmaBurst(midX, midY, 25);
+
                                 combos.push(new AnimatedComboText(midX, midY, other.comboChain));
                             }
                         }
@@ -625,6 +679,16 @@
 
                 if (target.y > height + 100 || target.x < -250 || target.x > width + 250) {
                     targets.splice(i, 1);
+                }
+            }
+
+            // --- YENI: PLAZMA PARÇACIKLARINI GÜNCELLE VE ÇİZ ---
+            for (let i = particles.length - 1; i >= 0; i--) {
+                let p = particles[i];
+                if (!isPaused) p.update(); // Oyun duraklatıldıysa parçacık fiziğini dondur
+                p.draw();
+                if (p.alpha <= 0) {
+                    particles.splice(i, 1); // Görünmez olanları hafızadan temizle
                 }
             }
 
