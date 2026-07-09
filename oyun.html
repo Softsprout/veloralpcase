@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Halloween Archery - Real Monsters</title>
+    <title>Halloween Archery - Nightmare Edition</title>
     <style>
         * {
             box-sizing: border-box;
@@ -19,7 +19,7 @@
             width: 100%;
             height: 100%;
             overflow: hidden;
-            background-color: #0d021a;
+            background-color: #0b0c10;
             font-family: 'Courier New', Courier, monospace;
         }
 
@@ -56,11 +56,21 @@
         let score = 0;
         let width, height;
 
-        // Arka plan resmi
+        // Arka plan resmi yükleme
         const bgImage = new Image();
         bgImage.src = "https://static.vecteezy.com/system/resources/thumbnails/029/731/971/small_2x/halloween-pumpkins-against-the-backdrop-of-a-scary-terrifying-house-and-forest-on-a-dark-night-halloween-background-photo.jpg";
 
-        // Yay ve El Ayarları
+        // GitHub Canavar Görselleri
+        const monsterImages = [
+            new Image(),
+            new Image(),
+            new Image()
+        ];
+        monsterImages[0].src = "https://raw.githubusercontent.com/Softsprout/veloralpcase/refs/heads/main/monster1.png";
+        monsterImages[1].src = "https://raw.githubusercontent.com/Softsprout/veloralpcase/refs/heads/main/monster2.png";
+        monsterImages[2].src = "https://raw.githubusercontent.com/Softsprout/veloralpcase/refs/heads/main/monster3.png";
+
+        // Yay Fırlatıcı Ayarları (İskelet Kol / Gotik Tasarım)
         const launcher = {
             x: 0,
             y: 0,
@@ -81,57 +91,40 @@
             launcher.y = height - 60;
         }
 
-        // ==========================================
-        //  GERÇEKÇİ HALLOWEEN CANAVARLARI (Gelişmiş SVG)
-        // ==========================================
-        const monsterAssets = {
-            // 1. Zombi Ejderha Balığı (Yeşil Işıltılı, Kemikli ve Vahşi)
-            dragonFish: new Image(),
-            // 2. Şeytani Balkabağı (Yarasa Kanatlı ve Korkunç Gülüşlü)
-            evilPumpkin: new Image(),
-            // 3. Ölüm Balığı (Azrail Pelerinli, Kuru Kafalı)
-            reaperFish: new Image()
-        };
-
-        // Gelişmiş yüksek kaliteli SVG string'leri (Base64 simülasyonu / Profesyonel çizim vektörleri)
-        monsterAssets.dragonFish.src = `data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><defs><linearGradient id="g1" x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stop-color="%231a3300"/><stop offset="50%" stop-color="%234d9900"/><stop offset="100%" stop-color="%230d1a00"/></linearGradient><filter id="glow"><feGaussianBlur stdDeviation="2" result="coloredBlur"/><feMerge><feMergeNode in="coloredBlur"/><feMergeNode in="SourceGraphic"/></feMerge></filter></defs><path d="M10,50 C30,20 70,20 90,50 C70,80 30,80 10,50 Z" fill="url(%23g1)" stroke="%2366ff00" stroke-width="2"/><path d="M20,40 Q40,10 35,45 Q55,15 50,48 Q70,20 65,50" fill="none" stroke="%2399e63d" stroke-width="3" stroke-linecap="round"/><path d="M90,50 L75,35 L80,50 L75,65 Z" fill="%230d1a00" stroke="%2366ff00"/><circle cx="25" cy="40" r="5" fill="%23fff"/><circle cx="24" cy="40" r="2.5" fill="%23ff0000" filter="url(%23glow)"/><path d="M15,55 Q25,65 35,55 L30,52 L25,56 L20,52 Z" fill="%23fff"/><path d="M40,25 Q50,5 65,15 Q50,20 40,25 Z" fill="%231a3300" stroke="%2366ff00"/></svg>`;
-
-        monsterAssets.evilPumpkin.src = `data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><defs><radialGradient id="g2" cx="50%" cy="50%" r="50%"><stop offset="0%" stop-color="%23ff9900"/><stop offset="70%" stop-color="%23cc5200"/><stop offset="100%" stop-color="%234a1a00"/></radialGradient><filter id="glow2"><feGaussianBlur stdDeviation="3" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter></defs><path d="M10,35 Q-15,10 5,5 Q15,15 25,30 Z M90,35 Q115,10 95,5 Q85,15 75,30 Z" fill="%23111" stroke="%23ff3300"/><ellipse cx="50" cy="50" rx="40" ry="35" fill="url(%23g2)"/><path d="M45,15 Q50,5 55,15 Z" fill="%232d5900"/><path d="M30,40 L40,35 L35,48 Z M70,40 L60,35 L65,48 Z" fill="%23ffea00" filter="url(%23glow2)"/><path d="M25,60 Q50,85 75,60 Q65,65 50,62 Q35,65 25,60 M35,62 L40,68 L45,63 L50,72 L55,63 L60,68 L65,62" fill="%23ffea00" filter="url(%23glow2)"/><path d="M20,50 C15,30 35,20 50,20 C65,20 85,30 80,50" fill="none" stroke="%23331400" stroke-width="1.5"/></svg>`;
-
-        monsterAssets.reaperFish.src = `data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><defs><filter id="g3"><feGaussianBlur stdDeviation="1.5" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter></defs><path d="M80,50 C60,25 20,30 15,50 C20,70 60,75 80,50" fill="%231a0d2e" stroke="%234a2574" stroke-width="2"/><path d="M15,50 C10,35 30,15 50,20 C40,35 45,65 15,50" fill="%230b0514"/><path d="M45,35 Q30,35 35,50 Q30,65 45,65 Q55,50 45,35 Z" fill="%23f2f2f2" stroke="%23999" stroke-width="2"/><circle cx="38" cy="45" r="4" fill="%23000"/><circle cx="48" cy="45" r="4" fill="%23000"/><circle cx="38" cy="45" r="1.5" fill="%2300ffcc" filter="url(%23g3)"/><circle cx="48" cy="45" r="1.5" fill="%2300ffcc" filter="url(%23g3)"/><path d="M38,55 Q43,50 48,55" fill="none" stroke="%23000" stroke-width="2"/><path d="M80,50 L95,35 L90,50 L95,65 Z" fill="%234a2574"/></svg>`;
-
-
-        // Canavar Yönetim Sınıfı
-        class Monster {
+        // GitHub Görsellerini Kullanan Canavar Sınıfı
+        class HalloweenMonster {
             constructor() {
-                const types = ['dragonFish', 'evilPumpkin', 'reaperFish'];
-                this.type = types[Math.floor(Math.random() * types.length)];
-                this.image = monsterAssets[this.type];
+                // Yüklediğin 3 görselden birini rastgele seçiyoruz
+                this.imgIndex = Math.floor(Math.random() * monsterImages.length);
+                this.image = monsterImages[this.imgIndex];
 
-                this.x = Math.random() > 0.5 ? -120 : width + 120;
-                this.y = Math.random() * (height * 0.45) + 60;
+                // Giriş yönü (Rastgele sağdan veya soldan)
+                this.x = Math.random() > 0.5 ? -150 : width + 150;
+                this.y = Math.random() * (height * 0.45) + 60; // Ekranın üst yarısında uçarlar
                 this.speed = (Math.random() * 1.8 + 1.5) * (this.x < 0 ? 1 : -1);
 
-                // Canavara göre boyut ayarı (Daha heybetli dursunlar)
-                this.size = this.type === 'evilPumpkin' ? 95 : 85;
-                this.radius = this.size * 0.4; // Gerçekçi çarpışma alanı
+                // Canavarların heybetli durması için boyut ayarı
+                this.size = 110;
+                this.radius = this.size * 0.35; // Vurulma hassasiyeti yarıçapı
             }
 
             update() {
                 this.x += this.speed;
-                // Hafif aşağı yukarı süzülme efekti (Canlılık katması için)
-                this.y += Math.sin(this.x * 0.02) * 0.5;
+                // Havada mistik bir süzülme dalgası efekti
+                this.y += Math.sin(this.x * 0.02) * 0.6;
             }
 
             draw() {
                 ctx.save();
                 ctx.translate(this.x, this.y);
 
-                // Hareket yönüne göre canavarı aynala
+                // Hareket yönüne göre görseli yatayda aynalama
                 if (this.speed < 0) ctx.scale(-1, 1);
 
-                // SVG görselini canvas'a kusursuz çiz
-                ctx.drawImage(this.image, -this.size / 2, -this.size / 2, this.size, this.size);
+                // Görsel yüklendiyse canvas üzerine merkezleyerek çiz
+                if (this.image.complete) {
+                    ctx.drawImage(this.image, -this.size / 2, -this.size / 2, this.size, this.size);
+                }
 
                 ctx.restore();
             }
@@ -140,8 +133,12 @@
         // Lanetli Ok Sınıfı
         class CurseArrow {
             constructor(x, y, vx, vy) {
-                this.x = x; this.y = y; this.vx = vx; this.vy = vy;
-                this.gravity = 0.16; this.angle = 0;
+                this.x = x;
+                this.y = y;
+                this.vx = vx;
+                this.vy = vy;
+                this.gravity = 0.16; // Yerçekimi kuvveti
+                this.angle = 0;
             }
 
             update() {
@@ -153,100 +150,221 @@
 
             draw() {
                 ctx.save();
-                ctx.translate(this.x, this.y); ctx.rotate(this.angle);
+                ctx.translate(this.x, this.y);
+                ctx.rotate(this.angle);
 
-                // Ok Gövdesi (Eski rünlü ahşap)
-                ctx.strokeStyle = '#3a2d54'; ctx.lineWidth = 4;
-                ctx.beginPath(); ctx.moveTo(-35, 0); ctx.lineTo(0, 0); ctx.stroke();
+                // Ok Gövdesi (Koyu Antik Cadı Odunu)
+                ctx.strokeStyle = '#3a2d54';
+                ctx.lineWidth = 4;
+                ctx.beginPath();
+                ctx.moveTo(-35, 0);
+                ctx.lineTo(0, 0);
+                ctx.stroke();
 
-                // Ok Arkası (Yarasa Kanadı)
+                // Ok Arkası (Yarasa Kanadı Formu)
                 ctx.fillStyle = '#8a0303';
-                ctx.beginPath(); ctx.moveTo(-35, 0); ctx.lineTo(-45, -8); ctx.lineTo(-40, 0); ctx.lineTo(-45, 8); ctx.closePath(); ctx.fill();
+                ctx.beginPath();
+                ctx.moveTo(-35, 0);
+                ctx.lineTo(-45, -8);
+                ctx.lineTo(-40, 0);
+                ctx.lineTo(-45, 8);
+                ctx.closePath();
+                ctx.fill();
 
-                // Parlayan Ok Ucu
-                ctx.fillStyle = '#49e31b'; ctx.shadowColor = '#49e31b'; ctx.shadowBlur = 12;
-                ctx.beginPath(); ctx.moveTo(0, 0); ctx.lineTo(-12, -7); ctx.lineTo(10, 0); ctx.lineTo(-12, 7); ctx.closePath(); ctx.fill();
+                // Parlayan Ok Ucu (Plazma Yeşili)
+                ctx.fillStyle = '#49e31b';
+                ctx.shadowColor = '#49e31b';
+                ctx.shadowBlur = 12;
+                ctx.beginPath();
+                ctx.moveTo(0, 0);
+                ctx.lineTo(-12, -7);
+                ctx.lineTo(10, 0);
+                ctx.lineTo(-12, 7);
+                ctx.closePath();
+                ctx.fill();
 
-                ctx.restore(); ctx.shadowBlur = 0;
+                ctx.restore();
+                ctx.shadowBlur = 0;
             }
         }
 
-        // Kontroller (PC & Mobil)
-        function getPos(e) { const rect = canvas.getBoundingClientRect(); const clientX = e.touches ? e.touches[0].clientX : e.clientX; const clientY = e.touches ? e.touches[0].clientY : e.clientY; return { x: clientX - rect.left, y: clientY - rect.top }; }
-        function startDrag(e) { const pos = getPos(e); const dist = Math.hypot(pos.x - launcher.x, pos.y - launcher.y); if (dist < launcher.radius + 50) { launcher.isDragging = true; launcher.dragX = pos.x; launcher.dragY = pos.y; } }
-        function doDrag(e) { if (!launcher.isDragging) return; const pos = getPos(e); const dx = pos.x - launcher.x, dy = pos.y - launcher.y, dist = Math.hypot(dx, dy); if (dist > launcher.maxDrag) { launcher.dragX = launcher.x + (dx / dist) * launcher.maxDrag; launcher.dragY = launcher.y + (dy / dist) * launcher.maxDrag; } else { launcher.dragX = pos.x; launcher.dragY = pos.y; } }
-        function endDrag(e) { if (!launcher.isDragging) return; launcher.isDragging = false; const dx = launcher.x - launcher.dragX, dy = launcher.y - launcher.dragY, power = 0.16; arrows.push(new CurseArrow(launcher.x, launcher.y - 20, dx * power, dy * power)); }
+        // Giriş Kontrol Koordinatörleri (PC & Mobil Ortak)
+        function getPos(e) {
+            const rect = canvas.getBoundingClientRect();
+            const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+            const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+            return { x: clientX - rect.left, y: clientY - rect.top };
+        }
 
+        function startDrag(e) {
+            const pos = getPos(e);
+            const dist = Math.hypot(pos.x - launcher.x, pos.y - launcher.y);
+            if (dist < launcher.radius + 50) {
+                launcher.isDragging = true;
+                launcher.dragX = pos.x;
+                launcher.dragY = pos.y;
+            }
+        }
+
+        function doDrag(e) {
+            if (!launcher.isDragging) return;
+            const pos = getPos(e);
+            const dx = pos.x - launcher.x;
+            const dy = pos.y - launcher.y;
+            const dist = Math.hypot(dx, dy);
+
+            if (dist > launcher.maxDrag) {
+                launcher.dragX = launcher.x + (dx / dist) * launcher.maxDrag;
+                launcher.dragY = launcher.y + (dy / dist) * launcher.maxDrag;
+            } else {
+                launcher.dragX = pos.x;
+                launcher.dragY = pos.y;
+            }
+        }
+
+        function endDrag(e) {
+            if (!launcher.isDragging) return;
+            launcher.isDragging = false;
+
+            const dx = launcher.x - launcher.dragX;
+            const dy = launcher.y - launcher.dragY;
+            const power = 0.16; // Atış hızı çarpanı
+
+            // Oku yayın hafif üst noktasından fırlatıyoruz
+            arrows.push(new CurseArrow(launcher.x, launcher.y - 20, dx * power, dy * power));
+        }
+
+        // Dinleyiciler
         window.addEventListener('resize', resize);
-        canvas.addEventListener('mousedown', startDrag); window.addEventListener('mousemove', doDrag); window.addEventListener('mouseup', endDrag);
-        canvas.addEventListener('touchstart', startDrag, { passive: true }); canvas.addEventListener('touchmove', doDrag, { passive: true }); canvas.addEventListener('touchend', endDrag);
+        canvas.addEventListener('mousedown', startDrag);
+        window.addEventListener('mousemove', doDrag);
+        window.addEventListener('mouseup', endDrag);
+        canvas.addEventListener('touchstart', startDrag, { passive: true });
+        window.addEventListener('touchmove', doDrag, { passive: true });
+        window.addEventListener('touchend', endDrag);
 
-        // Canavar Döngüsü
-        setInterval(() => { if (targets.length < 4) { targets.push(new Monster()); } }, 1600);
+        // Canavar Üretim Döngüsü
+        setInterval(() => {
+            if (targets.length < 4) { // Ekranda aynı anda en fazla 4 canavar olabilir
+                targets.push(new HalloweenMonster());
+            }
+        }, 1500);
 
-        // Gotik Yay ve Kemikli El Çizimi
+        // Gotik Tasarımlı Yay ve İskelet El Çizimi
         function drawLauncher() {
             ctx.save();
             ctx.translate(launcher.x, launcher.y);
 
-            // Gerilen İp
-            ctx.strokeStyle = launcher.isDragging ? '#ff3300' : '#44e31b'; ctx.lineWidth = 2; ctx.beginPath();
+            // 1. Gerilen İp (Çekilirken kırmızılaşır, dururken yeşildir)
+            ctx.strokeStyle = launcher.isDragging ? '#ff3300' : '#44e31b';
+            ctx.lineWidth = 2;
+            ctx.beginPath();
             if (launcher.isDragging) {
-                let localDragX = launcher.dragX - launcher.x, localDragY = launcher.dragY - launcher.y;
-                ctx.moveTo(-50, -10); ctx.lineTo(localDragX, localDragY); ctx.lineTo(50, -10);
+                let localDragX = launcher.dragX - launcher.x;
+                let localDragY = launcher.dragY - launcher.y;
+                ctx.moveTo(-50, -10);
+                ctx.lineTo(localDragX, localDragY);
+                ctx.lineTo(50, -10);
             } else {
-                ctx.moveTo(-50, -10); ctx.lineTo(50, -10);
+                ctx.moveTo(-50, -10);
+                ctx.lineTo(50, -10);
             }
             ctx.stroke();
 
-            // Gotik Yay
-            ctx.strokeStyle = '#2b1d11'; ctx.lineWidth = 10; ctx.lineCap = 'round'; ctx.shadowColor = '#000'; ctx.shadowBlur = 10; ctx.beginPath(); ctx.arc(0, 15, 52, Math.PI, 0, false); ctx.stroke();
-            ctx.fillStyle = '#ff7700'; ctx.beginPath(); ctx.arc(0, 15, 14, 0, Math.PI * 2); ctx.fill();
+            // 2. Gotik Ahşap Yay Gövdesi
+            ctx.strokeStyle = '#2b1d11';
+            ctx.lineWidth = 10;
+            ctx.lineCap = 'round';
+            ctx.shadowColor = '#000';
+            ctx.shadowBlur = 10;
+            ctx.beginPath();
+            ctx.arc(0, 15, 52, Math.PI, 0, false);
+            ctx.stroke();
 
-            // İskelet El
-            ctx.fillStyle = '#d1ccb8'; ctx.strokeStyle = '#423d30'; ctx.lineWidth = 1.5; ctx.fillRect(-8, 25, 16, 50);
-            for (let i = -10; i <= 10; i += 6) { ctx.beginPath(); ctx.arc(i, 20, 4, 0, Math.PI * 2); ctx.fill(); ctx.stroke(); }
-            ctx.restore(); ctx.shadowBlur = 0;
+            // Yayın merkezindeki uğursuz turuncu çekirdek
+            ctx.fillStyle = '#ff7700';
+            ctx.beginPath();
+            ctx.arc(0, 15, 14, 0, Math.PI * 2);
+            ctx.fill();
+
+            // 3. Yayı Alanı Saran Kemikli İskelet Kol
+            ctx.fillStyle = '#d1ccb8';
+            ctx.strokeStyle = '#423d30';
+            ctx.lineWidth = 1.5;
+            ctx.fillRect(-8, 25, 16, 50); // Kol gövdesi
+            for (let i = -10; i <= 10; i += 6) { // Parmaklar
+                ctx.beginPath();
+                ctx.arc(i, 20, 4, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.stroke();
+            }
+
+            ctx.restore();
+            ctx.shadowBlur = 0;
         }
 
-        // Oyun Döngüsü
+        // Ana Oyun Döngüsü (Game Loop)
         function loop() {
             ctx.clearRect(0, 0, width, height);
 
-            // Arka Plan
-            if (bgImage.complete) ctx.drawImage(bgImage, 0, 0, width, height);
-            else { ctx.fillStyle = "#0d021a"; ctx.fillRect(0, 0, width, height); }
+            // 1. Arka Planı Responsive Olarak Çiz
+            if (bgImage.complete) {
+                ctx.drawImage(bgImage, 0, 0, width, height);
+            } else {
+                ctx.fillStyle = "#0d021a";
+                ctx.fillRect(0, 0, width, height);
+            }
 
+            // 2. Yayı Çiz
             drawLauncher();
 
-            // Oklar
+            // 3. Okları Güncelle ve Çiz (Nişan hattı tamamen gizli)
             for (let i = arrows.length - 1; i >= 0; i--) {
-                let arrow = arrows[i]; arrow.update(); arrow.draw();
-                if (arrow.x < -50 || arrow.x > width + 50 || arrow.y > height + 50) { arrows.splice(i, 1); continue; }
+                let arrow = arrows[i];
+                arrow.update();
+                arrow.draw();
 
-                // Çarpışma
+                // Ekrandan uçup giden okları bellekten sil
+                if (arrow.x < -50 || arrow.x > width + 50 || arrow.y > height + 50) {
+                    arrows.splice(i, 1);
+                    continue;
+                }
+
+                // Canavarlarla Çarpışma Testi
                 for (let j = targets.length - 1; j >= 0; j--) {
                     let target = targets[j];
                     let dist = Math.hypot(arrow.x - target.x, arrow.y - target.y);
+
                     if (dist < target.radius) {
-                        score += 20;
+                        // Vurulduğunda canavarın türüne göre skor artar
+                        score += (target.imgIndex + 1) * 10;
                         scoreEl.innerText = score;
-                        targets.splice(j, 1); arrows.splice(i, 1);
+
+                        targets.splice(j, 1);
+                        arrows.splice(i, 1);
                         break;
                     }
                 }
             }
 
-            // Canavarlar
+            // 4. Canavarları Güncelle ve Çiz
             for (let i = targets.length - 1; i >= 0; i--) {
-                let target = targets[i]; target.update(); target.draw();
-                if ((target.speed > 0 && target.x > width + 150) || (target.speed < 0 && target.x < -150)) { targets.splice(i, 1); }
+                let target = targets[i];
+                target.update();
+                target.draw();
+
+                // Ekrandan tamamen çıkan canavarları temizle
+                if ((target.speed > 0 && target.x > width + 150) || (target.speed < 0 && target.x < -150)) {
+                    targets.splice(i, 1);
+                }
             }
 
             requestAnimationFrame(loop);
         }
 
-        resize(); loop();
+        // Oyunu Çalıştır
+        resize();
+        loop();
     </script>
 </body>
 
