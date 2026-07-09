@@ -62,9 +62,7 @@
 
             /* --- MOBİL MAVİ TIKLAMA EFEKTİ FIX --- */
             -webkit-tap-highlight-color: transparent;
-            /* Mobildeki mavi arka planı kaldırır */
             outline: none;
-            /* Odaklanma çerçevesini kaldırır */
         }
 
         #pauseBtn:active {
@@ -110,6 +108,10 @@
         let isGameOver = false;
         let isPaused = false;
         let width, height;
+
+        // --- ZORLUK DERECE SİSTEMİ DEĞİŞKENLERİ ---
+        let difficultyMultiplier = 1.0; // Başlangıç zorluk çarpanı
+        let lastSpawnTime = 0;          // Zaman tabanlı dinamik spawn yönetimi için
 
         highScoreEl.innerText = highScore;
 
@@ -182,11 +184,13 @@
             lives = 3;
             isGameOver = false;
             isPaused = false;
+            difficultyMultiplier = 1.0; // Zorluk çarpanını sıfırla
+            lastSpawnTime = Date.now();
             updatePauseIcon();
             arrows = [];
             targets = [];
             combos = [];
-            particles = []; // Yeni can can parçacıkları temizle
+            particles = [];
             scoreEl.innerText = score;
             livesEl.innerText = lives;
         }
@@ -230,7 +234,7 @@
         let arrows = [];
         let targets = [];
         let combos = [];
-        let particles = []; // Parçacıkları tutacak dinamik dizi
+        let particles = [];
 
         function resize() {
             const dpr = window.devicePixelRatio || 1;
@@ -248,21 +252,20 @@
             launcher.y = height - 70;
         }
 
-        // --- YENI: CADILAR BAYRAMI PLAZMA PARÇACIK SINIFI ---
+        // CADILAR BAYRAMI PLAZMA PARÇACIK SINIFI
         class HalloweenParticle {
             constructor(x, y) {
                 this.x = x;
                 this.y = y;
-                // Patlama efektinin her yöne dairesel yayılması için trigonometrik rastgele hızlar
                 const angle = Math.random() * Math.PI * 2;
                 const speed = Math.random() * 4 + 2;
                 this.vx = Math.cos(angle) * speed;
-                this.vy = Math.sin(angle) * speed - 1; // Hafif yukarı fırlama ivmesi
+                this.vy = Math.sin(angle) * speed - 1;
 
-                this.radius = Math.random() * 3.5 + 1.5; // Değişken boyutlar
+                this.radius = Math.random() * 3.5 + 1.5;
                 this.alpha = 1.0;
-                this.decay = Math.random() * 0.02 + 0.015; // Kaybolma hızı
-                this.gravity = 0.15; // Parçacıklara özel hafif yerçekimi
+                this.decay = Math.random() * 0.02 + 0.015;
+                this.gravity = 0.15;
             }
             update() {
                 this.vy += this.gravity;
@@ -274,9 +277,9 @@
                 if (this.alpha <= 0) return;
                 ctx.save();
                 ctx.globalAlpha = this.alpha;
-                ctx.fillStyle = '#49e31b'; // Cadı Yeşili
+                ctx.fillStyle = '#49e31b';
                 ctx.shadowColor = '#49e31b';
-                ctx.shadowBlur = 8; // Neon plazma parlaması
+                ctx.shadowBlur = 8;
 
                 ctx.beginPath();
                 ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
@@ -285,7 +288,6 @@
             }
         }
 
-        // Belirtilen koordinatta plazma patlaması yaratan yardımcı fonksiyon
         function createPlasmaBurst(x, y, count = 15) {
             for (let i = 0; i < count; i++) {
                 particles.push(new HalloweenParticle(x, y));
@@ -335,7 +337,11 @@
                 this.image = monsterImages[this.imgIndex];
                 this.x = Math.random() > 0.5 ? -200 : width + 200;
                 this.y = Math.random() * (height * 0.45) + 60;
-                this.speedX = (Math.random() * 1.8 + 1.5) * (this.x < 0 ? 1 : -1);
+
+                // --- PROGRESSION ENTEGRASYONU ---
+                // Canavarların başlangıç hızı o anki zorluk çarpanı (difficultyMultiplier) ile ölçeklenir
+                this.speedX = (Math.random() * 1.8 + 1.5) * (this.x < 0 ? 1 : -1) * difficultyMultiplier;
+
                 this.speedY = 0;
                 this.height = 65;
                 this.width = 110;
@@ -476,10 +482,6 @@
         canvas.addEventListener('touchmove', doDrag, { passive: true });
         window.addEventListener('touchend', endDrag);
 
-        setInterval(() => {
-            if (targets.length < 4 && !isGameOver && !isPaused) targets.push(new HalloweenMonster());
-        }, 1500);
-
         function drawTrajectoryIndicator(vx, vy) {
             ctx.save();
             let trajX = launcher.x;
@@ -595,6 +597,23 @@
             if (bgImage.complete) ctx.drawImage(bgImage, 0, 0, width, height);
             else { ctx.fillStyle = "#0d021a"; ctx.fillRect(0, 0, width, height); }
 
+            // --- PROGRESSION/ZORLUK ÇARPANI ARTIRMA ---
+            // Oyun akarken her frame zorluk çarpanını çok küçük bir adımlarla sürekli yükseltiyoruz tavan limit: 2.2x hız
+            if (!isGameOver && !isPaused) {
+                if (difficultyMultiplier < 2.2) {
+                    difficultyMultiplier += 0.00015;
+                }
+
+                // DİNAMİK DALGA ÜRETİMİ (Spawn Cooldown Scaling)
+                // Başlangıçta 1500ms olan spawn süresi zorluk arttıkça lineer olarak 800ms'ye kadar kısalır
+                let currentSpawnCooldown = Math.max(800, 1500 - (difficultyMultiplier - 1) * 800);
+                let now = Date.now();
+                if (now - lastSpawnTime > currentSpawnCooldown && targets.length < 4) {
+                    targets.push(new HalloweenMonster());
+                    lastSpawnTime = now;
+                }
+            }
+
             if (!isGameOver) drawLauncher();
 
             // Oklar Kontrolü
@@ -631,7 +650,6 @@
                         arrow.hasHit = true;
                         playHitSound();
 
-                        // --- INTEGRASYON: İLK OK VURUŞUNDA PLAZMA EFEKTİ TEPKİSİ ---
                         createPlasmaBurst(arrow.x, arrow.y, 15);
 
                         target.hit(arrow.vx);
@@ -668,7 +686,6 @@
                                 let midX = (target.x + other.x) / 2;
                                 let midY = (target.y + other.y) / 2;
 
-                                // --- INTEGRASYON: KOMBO PATLAMASINDA BÜYÜK PLAZMA EFEKTİ ---
                                 createPlasmaBurst(midX, midY, 25);
 
                                 combos.push(new AnimatedComboText(midX, midY, other.comboChain));
@@ -682,13 +699,13 @@
                 }
             }
 
-            // --- YENI: PLAZMA PARÇACIKLARINI GÜNCELLE VE ÇİZ ---
+            // Plazma Parçacıklarını Güncelle ve Çiz
             for (let i = particles.length - 1; i >= 0; i--) {
                 let p = particles[i];
-                if (!isPaused) p.update(); // Oyun duraklatıldıysa parçacık fiziğini dondur
+                if (!isPaused) p.update();
                 p.draw();
                 if (p.alpha <= 0) {
-                    particles.splice(i, 1); // Görünmez olanları hafızadan temizle
+                    particles.splice(i, 1);
                 }
             }
 
@@ -708,6 +725,7 @@
             requestAnimationFrame(loop);
         }
 
+        lastSpawnTime = Date.now(); // İlk zamanlayıcı tetikleyicisi
         resize();
         loop();
     </script>

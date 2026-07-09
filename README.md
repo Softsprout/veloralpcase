@@ -1,5 +1,9 @@
 # veloralpcase
 
+# 🤖 AI Chat History
+
+https://share.gemini.google/pdGd9Vgk1Wwq
+
 # 🎃 Halloween Archery: Gothic Combo Edition
 
 Cadılar Bayramı temalı, fizik tabanlı ve yüksek tempolu bir arcade okçuluk oyunu. Tamamen harici kütüphanesiz (Pure JS & Canvas HTML5) geliştirilen bu projede, tekinsiz bir gecede uçuşan canavarları avlayarak en yüksek skoru elde etmeye çalışın!
@@ -38,5 +42,4 @@ Oyun tamamen dokunmatik ekranlar ve fare kontrolleri için optimize edilmiştir:
 Oyun şu an kararlı ve pürüzsüz çalışmaktadır, ancak projenin ilerleyen aşamalarında eklenebilecek bilinen eksiklikler ve açık noktalar şunlardır:
 
 *   **Varyasyon Eksikliği:** Canavarlar şu an sadece farklı görsellere sahip. Gelecek güncellemelerde daha hızlı giden "Yarasalar" veya vurulması daha zor olan zırhlı canavarlar eklenebilir.
-*   **Zorluk Derecesi (Scaling):** Skor arttıkça canavarların geliş hızı sabit kalmaktadır. Oyun süresine bağlı olarak hızlanan bir zorluk eğrisi (progression sistemi) eklenebilir.
 *   **Müzik Altyapısı:** Donanımsal ses sistemi efektlerde harika çalışsa da arkada sürekli çalacak melodik bir korku müziği sentezlemek yerine harici bir sinematik soundtrack loop'u entegre edilebilir.
